@@ -221,8 +221,21 @@ load (const char *file_name, void (**eip) (void), void **esp)
     goto done;
   process_activate ();
 
+  // JGH, argument parsing using strtok
+  char *string_parameter[4];
+  int cnt = 0; 
+
+  char *ptr = strtok(file_name, " ");
+
+  while(ptr != NULL){
+    string_parameter[cnt] = ptr;
+    cnt ++;
+    ptr = strtok(NULL, " ");
+  }
+  //JGH 
+
   /* Open executable file. */
-  file = filesys_open (file_name);
+  file = filesys_open (string_parameter[0]); // JGH <- before : file = filesys_open (file_name); 
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
@@ -304,6 +317,19 @@ load (const char *file_name, void (**eip) (void), void **esp)
   /* Set up stack. */
   if (!setup_stack (esp))
     goto done;
+  
+  //JGH, argument passing with stack
+  for(int i=cnt; i>=0; i--){
+    __asm__ volatile(
+      pushl %1;
+        : 
+        : "r" (string_parameter[i])
+        : "memory");
+  }
+
+
+
+  
 
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
