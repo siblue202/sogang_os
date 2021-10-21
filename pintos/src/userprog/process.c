@@ -225,12 +225,12 @@ load (const char *file_name, void (**eip) (void), void **esp)
   char *string_parameter[4];
   int cnt = 0; 
 
-  char *ptr = strtok(file_name, " ");
+  char *ptr = strtok_r(file_name, " ");
 
   while(ptr != NULL){
     string_parameter[cnt] = ptr;
     cnt ++;
-    ptr = strtok(NULL, " ");
+    ptr = strtok_r(NULL, " ");
   }
   //JGH 
 
@@ -318,19 +318,49 @@ load (const char *file_name, void (**eip) (void), void **esp)
   if (!setup_stack (esp))
     goto done;
   
-  //JGH, argument passing with stack
-  for(int i=cnt; i>=0; i--){
-    __asm__ volatile(
-      pushl %1;
-        : 
-        : "r" (string_parameter[i])
-        : "memory");
+  // JGH, argument passing 
+
+  uint8_t total_len = 0;
+
+  // push argv[i][...]
+  for(int i=cnt-1; i>=0 ; i--){
+    *esp -= strlen(string_parameter[i]);
+    memcpy(*esp, string_parameter[i], strlen(string_parameter[i]));
+    total_len += strlen(string_parameter[i]);
   }
 
+  // push word_align
+  if(total_len % 4 != 0){
+    *esp -= 4 - (total_len % 4);
+  }
 
+  // push NULL pointer 
+  *esp -= 4;
+  **(uint32_t **)esp = 0;
+
+  // push argv[i]
+  for(int i=cnt-1; i>=0; i--){
+    *esp -= 4;
+    **(uint32_t **)esp = string_parameter[i];
+  }
+
+  // push argv
+  *esp -= 4;
+  **(uint32_t **)esp = *esp + 4;
+
+  // push argc
+  *esp -= 4;
+  **(uint32_t **)esp = cnt;
+
+  // push fake 'return address '
+  *esp -= 4;
+  **(uint32_t **)esp = 0;
+
+  hex_dump(0, *esp, 1000, 1);
 
   
-
+  // JGH
+  
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
 
