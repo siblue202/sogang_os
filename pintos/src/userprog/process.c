@@ -39,7 +39,10 @@ process_execute (const char *file_name)
   strlcpy (fn_copy, file_name, PGSIZE);
 
   /* Create a new thread to execute FILE_NAME. */
+  printf("before start_process\n"); // debug
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  printf("after start_process\n"); // debug
+
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
@@ -53,13 +56,17 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
+  printf("222222\n"); // debug
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
+  printf("before load\n"); // debug
   success = load (file_name, &if_.eip, &if_.esp);
+  printf("after load\n"); // debug
+
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
@@ -131,7 +138,7 @@ process_activate (void)
      interrupts. */
   tss_update ();
 }
-
+
 /* We load ELF binaries.  The following definitions are taken
    from the ELF specification, [ELF1], more-or-less verbatim.  */
 
@@ -221,21 +228,63 @@ load (const char *file_name, void (**eip) (void), void **esp)
     goto done;
   process_activate ();
 
-  // JGH, argument parsing using strtok
-  char *string_parameter[4];
-  int cnt = 0; 
+  // JGH, argument parsing using strtok_r()
+  char fn[256]; //4KB
+  char ** argv;
+  int argc;
+  char *next_string;
+  char * ptr;
 
-  char *ptr = strtok_r(file_name, " ");
+  /* using malloc 
+
+  strlcpy(fn, file_name, strlen(file_name)+1);
+  
+  // calculate argc
+  argc = 0;
+  ptr = strtok_r(fn, " ", &next_string);
+  
+  while(ptr != NULL){
+    argc ++;
+    ptr = strtok_r(NULL, " ", &next_string);
+  }
+
+  // allocate argv, free when passing is done. 
+  argv = (char **)malloc(sizeof(char *) * argc); 
+
+  // set argv
+  argc = 0;
+  ptr = strtok_r(fn, " ", &next_string);
+  
+  while(ptr != NULL){
+    argv[argc] = ptr;
+    argc ++;
+    ptr = strtok_r(NULL, " ", &next_string);
+  }
+  */
+
+  printf("argument parsing start\n"); // debug
+
+  strlcpy(fn, file_name, strlen(file_name)+1);
+  argc = 0;
+  ptr = strtok_r(fn, " ", &next_string);
+  argv[0] = ptr;
 
   while(ptr != NULL){
-    string_parameter[cnt] = ptr;
-    cnt ++;
-    ptr = strtok_r(NULL, " ");
+    argc ++;
+    argv[argc] = ptr;
+    ptr = strtok_r(NULL, " ", &next_string);
   }
-  //JGH 
+
+  printf("argument parsing done\n"); // debug
+  for(int i=0; i<argc; i++){ // debug
+    printf("%s\n", argv[argc]); // debug 
+  } // debug
+  
+
+  //JGH_end
 
   /* Open executable file. */
-  file = filesys_open (string_parameter[0]); // JGH <- before : file = filesys_open (file_name); 
+  file = filesys_open (argv[0]); // JGH <- before : file = filesys_open (file_name); 
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
@@ -323,10 +372,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
   uint8_t total_len = 0;
 
   // push argv[i][...]
-  for(int i=cnt-1; i>=0 ; i--){
-    *esp -= strlen(string_parameter[i]);
-    memcpy(*esp, string_parameter[i], strlen(string_parameter[i]));
-    total_len += strlen(string_parameter[i]);
+  for(int i=argc-1; i>=0 ; i--){
+    *esp -= strlen(argv[i]) + 1;
+    memcpy(*esp, argv[i], strlen(argv[i]) + 1);
+    total_len += strlen(argv[i]);
   }
 
   // push word_align
@@ -339,27 +388,29 @@ load (const char *file_name, void (**eip) (void), void **esp)
   **(uint32_t **)esp = 0;
 
   // push argv[i]
-  for(int i=cnt-1; i>=0; i--){
+  for(int i=argc-1; i>=0; i--){
     *esp -= 4;
-    **(uint32_t **)esp = string_parameter[i];
+    **(uint32_t **)esp = (uint32_t)argv[i];
   }
 
   // push argv
   *esp -= 4;
-  **(uint32_t **)esp = *esp + 4;
+  **(uint32_t **)esp = (uint32_t)*esp + 4;
 
   // push argc
   *esp -= 4;
-  **(uint32_t **)esp = cnt;
+  **(uint32_t **)esp = argc;
 
   // push fake 'return address '
   *esp -= 4;
   **(uint32_t **)esp = 0;
 
-  hex_dump(0, *esp, 1000, 1);
+  // free(argv);
+
+  hex_dump(0, *esp, 100, 1);
 
   
-  // JGH
+  // JGH_end
   
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
@@ -371,7 +422,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   file_close (file);
   return success;
 }
-
+
 /* load() helpers. */
 
 static bool install_page (void *upage, void *kpage, bool writable);
@@ -519,3 +570,4 @@ install_page (void *upage, void *kpage, bool writable)
   return (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
 }
+
