@@ -17,6 +17,7 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/malloc.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -38,10 +39,16 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+  // JGH, argument parsing 
+  char argument[256];
+  char * next_argument;
+  
+  strlcpy (argument, file_name, PGSIZE);
+  char * token = strtok_r(argument, " ", &next_argument);
+  // JGH_end
+
   /* Create a new thread to execute FILE_NAME. */
-  printf("before start_process\n"); // debug
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
-  printf("after start_process\n"); // debug
+  tid = thread_create (token, PRI_DEFAULT, start_process, fn_copy);
 
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
@@ -56,17 +63,22 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
-  printf("222222\n"); // debug
+
+  // JGH
+  char argument[256];
+  char * next_parameter;
+
+  strlcpy(argument, file_name, PGSIZE);
+  char * token = strtok_r(argument, " ", &next_parameter);
+
+  // JGH_end
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  printf("before load\n"); // debug
-  success = load (file_name, &if_.eip, &if_.esp);
-  printf("after load\n"); // debug
-
+  success = load (token, &if_.eip, &if_.esp); // file_name -> token
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
@@ -95,6 +107,7 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
+  for(int i=0; i<1000000000; i++);
   return -1;
 }
 
@@ -229,13 +242,12 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
   // JGH, argument parsing using strtok_r()
+
   char fn[256]; //4KB
   char ** argv;
   int argc;
   char *next_string;
   char * ptr;
-
-  /* using malloc 
 
   strlcpy(fn, file_name, strlen(file_name)+1);
   
@@ -243,25 +255,31 @@ load (const char *file_name, void (**eip) (void), void **esp)
   argc = 0;
   ptr = strtok_r(fn, " ", &next_string);
   
-  while(ptr != NULL){
+  while(ptr){
     argc ++;
     ptr = strtok_r(NULL, " ", &next_string);
   }
+
+  printf("%d\n", argc);
 
   // allocate argv, free when passing is done. 
   argv = (char **)malloc(sizeof(char *) * argc); 
 
   // set argv
+  strlcpy(fn, file_name, strlen(file_name)+1);
   argc = 0;
   ptr = strtok_r(fn, " ", &next_string);
+  argv[argc] = ptr;
+  printf("%s\n", argv[argc]);
   
-  while(ptr != NULL){
-    argv[argc] = ptr;
+  while(ptr){
     argc ++;
     ptr = strtok_r(NULL, " ", &next_string);
+    argv[argc] = ptr;
+    printf("%s\n", argv[argc]);
   }
-  */
-
+  
+  /*
   printf("argument parsing start\n"); // debug
 
   strlcpy(fn, file_name, strlen(file_name)+1);
@@ -269,17 +287,12 @@ load (const char *file_name, void (**eip) (void), void **esp)
   ptr = strtok_r(fn, " ", &next_string);
   argv[0] = ptr;
 
-  while(ptr != NULL){
+  while(ptr){
     argc ++;
-    argv[argc] = ptr;
     ptr = strtok_r(NULL, " ", &next_string);
+    argv[argc] = ptr;
   }
-
-  printf("argument parsing done\n"); // debug
-  for(int i=0; i<argc; i++){ // debug
-    printf("%s\n", argv[argc]); // debug 
-  } // debug
-  
+  */
 
   //JGH_end
 
@@ -408,6 +421,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
   // free(argv);
 
   hex_dump(0, *esp, 100, 1);
+
+  free(argv);
 
   
   // JGH_end
