@@ -45,10 +45,11 @@ process_execute (const char *file_name)
   
   strlcpy (argument, file_name, PGSIZE);
   char * token = strtok_r(argument, " ", &next_argument);
+  // printf("%s\n", token); // debug
   // JGH_end
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (token, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (token, PRI_DEFAULT, start_process, fn_copy); // file_name -> token
 
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
@@ -64,21 +65,12 @@ start_process (void *file_name_)
   struct intr_frame if_;
   bool success;
 
-  // JGH
-  char argument[256];
-  char * next_parameter;
-
-  strlcpy(argument, file_name, PGSIZE);
-  char * token = strtok_r(argument, " ", &next_parameter);
-
-  // JGH_end
-
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (token, &if_.eip, &if_.esp); // file_name -> token
+  success = load (file_name, &if_.eip, &if_.esp);
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
@@ -236,10 +228,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
   int i;
 
   /* Allocate and activate page directory. */
-  t->pagedir = pagedir_create ();
-  if (t->pagedir == NULL) 
+  t->pagedir = pagedir_create ();   // 페이지 디렉토리 생성
+  if (t->pagedir == NULL)          
     goto done;
-  process_activate ();
+  process_activate ();              // 페이지 테이블 활성화 
 
   // JGH, argument parsing using strtok_r()
 
@@ -260,8 +252,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
     ptr = strtok_r(NULL, " ", &next_string);
   }
 
-  printf("%d\n", argc);
-
   // allocate argv, free when passing is done. 
   argv = (char **)malloc(sizeof(char *) * argc); 
 
@@ -270,34 +260,20 @@ load (const char *file_name, void (**eip) (void), void **esp)
   argc = 0;
   ptr = strtok_r(fn, " ", &next_string);
   argv[argc] = ptr;
-  printf("%s\n", argv[argc]);
   
   while(ptr){
     argc ++;
     ptr = strtok_r(NULL, " ", &next_string);
+    if(ptr == NULL){  // null이여도 argc는 + 1 이라 개수는 일치. 
+      break;
+    }
     argv[argc] = ptr;
-    printf("%s\n", argv[argc]);
   }
   
-  /*
-  printf("argument parsing start\n"); // debug
-
-  strlcpy(fn, file_name, strlen(file_name)+1);
-  argc = 0;
-  ptr = strtok_r(fn, " ", &next_string);
-  argv[0] = ptr;
-
-  while(ptr){
-    argc ++;
-    ptr = strtok_r(NULL, " ", &next_string);
-    argv[argc] = ptr;
-  }
-  */
-
   //JGH_end
 
   /* Open executable file. */
-  file = filesys_open (argv[0]); // JGH <- before : file = filesys_open (file_name); 
+  file = filesys_open (argv[0]); // JGH <- before : file = filesys_open (file_name); 프로그램 파일 Open
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
@@ -305,6 +281,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     }
 
   /* Read and verify executable header. */
+  // ELF 파일의 헤더 정보를 읽어와 저장 
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
       || memcmp (ehdr.e_ident, "\177ELF\1\1\1", 7)
       || ehdr.e_type != 2
@@ -381,50 +358,57 @@ load (const char *file_name, void (**eip) (void), void **esp)
     goto done;
   
   // JGH, argument passing 
-
-  uint8_t total_len = 0;
+  uint8_t total_len = 0;  // for word_align.
 
   // push argv[i][...]
+  // printf("push argv[i][...]\n"); // debug 
   for(int i=argc-1; i>=0 ; i--){
-    *esp -= strlen(argv[i]) + 1;
+    *esp -= strlen(argv[i]) + 1;  // strlen은 \0 포함 x. +1 로 \0 포함 
     memcpy(*esp, argv[i], strlen(argv[i]) + 1);
-    total_len += strlen(argv[i]);
+    total_len += strlen(argv[i]) + 1;
+    // printf(" >> argv[%d] : %s & addr : %p \n", i, argv[i], *esp); // debug
+    argv[i] = *esp;
   }
 
   // push word_align
+  // printf("push word_align\n"); // debug
   if(total_len % 4 != 0){
     *esp -= 4 - (total_len % 4);
+    // printf(" >> # 0 is %d \n", total_len%4); // debug
   }
 
-  // push NULL pointer 
+  // push NULL pointer
+  // printf("push NULL pointer\n"); // debug 
   *esp -= 4;
   **(uint32_t **)esp = 0;
 
   // push argv[i]
+  // printf("push argv[i]\n"); // debug
   for(int i=argc-1; i>=0; i--){
     *esp -= 4;
-    **(uint32_t **)esp = (uint32_t)argv[i];
+    **(uint32_t **)esp = argv[i];
+    // printf(" >> %p\n", *esp); // debug
   }
 
   // push argv
+  // printf("push argv\n"); // debug
   *esp -= 4;
-  **(uint32_t **)esp = (uint32_t)*esp + 4;
+  **(uint32_t **)esp = (*esp + 4);
+  // printf(" >> %p\n", *esp+4); // debug
 
   // push argc
+  // printf("push argc\n"); // debug
   *esp -= 4;
   **(uint32_t **)esp = argc;
+  // printf(" >> %d\n", argc); // debug
 
   // push fake 'return address '
   *esp -= 4;
   **(uint32_t **)esp = 0;
 
-  // free(argv);
-
-  hex_dump(0, *esp, 100, 1);
+  // hex_dump(*esp, *esp, 100, 1); // debug
 
   free(argv);
-
-  
   // JGH_end
   
   /* Start address. */
