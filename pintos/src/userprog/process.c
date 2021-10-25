@@ -75,7 +75,7 @@ start_process (void *file_name_)
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) 
-    thread_exit ();
+    thread_exit (-1);
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -105,10 +105,14 @@ process_wait (tid_t child_tid UNUSED)
 
 /* Free the current process's resources. */
 void
-process_exit (void)
+process_exit (int status)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
+
+  // JGH_ adding process termination message. 0 is successful, -1 is fail
+  printf("%s: exit(%d)\n", cur->name, status);
+
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -406,7 +410,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   *esp -= 4;
   **(uint32_t **)esp = 0;
 
-  // hex_dump(*esp, *esp, 100, 1); // debug
+  hex_dump(*esp, *esp, 100, 1); // debug
 
   free(argv);
   // JGH_end
