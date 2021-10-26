@@ -90,6 +90,12 @@ struct thread
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
 
+    // JGH
+    tid_t parant_tid;                  
+    tid_t child_tid;
+    bool is_run;
+
+
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
@@ -123,7 +129,7 @@ struct thread *thread_current (void);
 tid_t thread_tid (void);
 const char *thread_name (void);
 
-void thread_exit (int status) NO_RETURN; //-> () -> (int status)
+void thread_exit () NO_RETURN; //-> () -> (int status)
 void thread_yield (void);
 
 /* Performs some operation on thread t, given auxiliary data AUX. */

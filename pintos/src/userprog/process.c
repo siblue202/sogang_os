@@ -39,6 +39,7 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+  /*
   // JGH, argument parsing 
   char argument[256];
   char * next_argument;
@@ -47,9 +48,10 @@ process_execute (const char *file_name)
   char * token = strtok_r(argument, " ", &next_argument);
   // printf("%s\n", token); // debug
   // JGH_end
+  */
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (token, PRI_DEFAULT, start_process, fn_copy); // file_name -> token
+  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy); // file_name -> token
 
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
@@ -99,19 +101,21 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  for(int i=0; i<1000000000; i++);
+  while(1){
+    if()
+  }
   return -1;
 }
 
 /* Free the current process's resources. */
 void
-process_exit (int status)
+process_exit ()
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
   // JGH_ adding process termination message. 0 is successful, -1 is fail
-  printf("%s: exit(%d)\n", cur->name, status);
+  // printf("%s: exit(%d)\n", cur->name, status);
 
 
   /* Destroy the current process's page directory and switch back
@@ -418,7 +422,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   printf("%p\n", *esp); // debug
   **(uint32_t **)esp = 0;
 
-  hex_dump(*esp, *esp, 100, 1); // debug
+  // hex_dump(*esp, *esp, 100, 1); // debug
 
   free(argv);
   // JGH_end
