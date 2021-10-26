@@ -273,6 +273,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     }
     argv[argc] = ptr;
   }
+  printf("argv[0] : %s\n", argv[0]); // debug 
   
   //JGH_end
 
@@ -371,6 +372,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     memcpy(*esp, argv[i], strlen(argv[i]) + 1);
     total_len += strlen(argv[i]) + 1;
     // printf(" >> argv[%d] : %s & addr : %p \n", i, argv[i], *esp); // debug
+    printf("%p\n", *esp); // debug
     argv[i] = *esp;
   }
 
@@ -379,17 +381,20 @@ load (const char *file_name, void (**eip) (void), void **esp)
   if(total_len % 4 != 0){
     *esp -= 4 - (total_len % 4);
     // printf(" >> # 0 is %d \n", total_len%4); // debug
+    printf("%p\n", *esp); // debug
   }
 
   // push NULL pointer
   // printf("push NULL pointer\n"); // debug 
   *esp -= 4;
   **(uint32_t **)esp = 0;
+  printf("%p\n", *esp); // debug
 
   // push argv[i]
   // printf("push argv[i]\n"); // debug
   for(int i=argc-1; i>=0; i--){
     *esp -= 4;
+    printf("%p\n", *esp); // debug
     **(uint32_t **)esp = argv[i];
     // printf(" >> %p\n", *esp); // debug
   }
@@ -397,17 +402,20 @@ load (const char *file_name, void (**eip) (void), void **esp)
   // push argv
   // printf("push argv\n"); // debug
   *esp -= 4;
-  **(uint32_t **)esp = (*esp + 4);
+  printf("%p\n", *esp); // debug
+  **(uint32_t **)esp = (*esp) + 4;
   // printf(" >> %p\n", *esp+4); // debug
 
   // push argc
   // printf("push argc\n"); // debug
   *esp -= 4;
+  printf("%p\n", *esp); // debug
   **(uint32_t **)esp = argc;
   // printf(" >> %d\n", argc); // debug
 
   // push fake 'return address '
   *esp -= 4;
+  printf("%p\n", *esp); // debug
   **(uint32_t **)esp = 0;
 
   hex_dump(*esp, *esp, 100, 1); // debug
