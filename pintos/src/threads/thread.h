@@ -92,15 +92,19 @@ struct thread
     struct list_elem allelem;           /* List element for all threads list. */
 
     // JGH
-    tid_t parant_tid;  
+    //  tid_t parant_tid;  
     int exit_status;
-    struct thread *child;
-    bool is_run;
-    struct semaphore *c_sema;           /*shared sema with child*/
-    struct semaphore *p_sema;           /*shared sema with paraent*/
+    //  struct thread *child;
+    struct list child;
+    struct list_elem child_elem;
+   //  bool is_run;
+    struct semaphore c_sema;           /*shared sema with child*/
+   //  struct semaphore *p_sema;           /*shared sema with paraent*/
+    struct semaphore mem_sema;         /* process_wait()에서 list_remove를 수행하기 위해 sema 사용 */
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
+
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */

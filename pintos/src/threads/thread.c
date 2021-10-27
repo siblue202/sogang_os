@@ -96,6 +96,12 @@ thread_init (void)
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
   init_thread (initial_thread, "main", PRI_DEFAULT);
+
+  //JGH
+  sema_init(&(initial_thread->c_sema), 0);
+  sema_init(&(initial_thread->mem_sema), 0);
+  list_init(&(initial_thread->child));
+
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
 }
@@ -185,12 +191,19 @@ thread_create (const char *name, int priority,
 
   // JGH :: set child and parent  tid in struct thread 
   // printf("current tid : %d,   just created tid : %d \n", thread_current()->tid, tid); // debug
-  t->parant_tid = thread_current()-> tid;
+  // t->parant_tid = thread_current()-> tid;
 
-  struct semaphore sema;
-  sema_init(&sema, 0);
+  // struct semaphore sema;
+  // sema_init(&sema, 0);
 
-  t->p_sema = thread_current()->c_sema = &sema;
+  // t->p_sema = thread_current()->c_sema = &sema;
+
+  // printf("init start\n");
+  sema_init(&(t->c_sema), 0);
+  sema_init(&(t->mem_sema), 0);
+  list_init(&(t->child));
+  list_push_back(&(thread_current()->child), &(t->child_elem));
+  // printf("init complete\n");
 
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
@@ -211,7 +224,7 @@ thread_create (const char *name, int priority,
   thread_unblock (t);
 
   // JGH
-  thread_current()->child = t;
+  // thread_current()->child = t;
 
   return tid;
 }

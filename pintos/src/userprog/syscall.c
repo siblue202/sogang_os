@@ -21,7 +21,7 @@ syscall_init (void)
 static void 
 check_addr(void *addr){
   if (!is_user_vaddr(addr)){
-    printf("invalid addr. \n");
+    // printf("invalid addr. \n");
     exit(-1);
   }
 }
@@ -51,19 +51,22 @@ void halt(void){
 
 void exit(int status){
   printf("%s: exit(%d)\n", thread_current()->name, status);
+  thread_current()->exit_status = status;
 
+  /*
   if(status == 0){
     thread_current()->is_run = false;
   } 
 
   thread_current()->exit_status = status;
   sema_up(thread_current()->p_sema);
+  */
 
   thread_exit(); // thread->state = thread_dying. 
 }
 
 tid_t exec(const char* cmd_line){
-  sema_down(thread_current()->c_sema);
+  // sema_down(thread_current()->c_sema);
   return process_execute(cmd_line);
 }
 
@@ -124,6 +127,7 @@ syscall_handler (struct intr_frame * f)
       break;
     
     case SYS_EXIT:
+      check_addr(esp+4);
       // get_argument(esp, arg, 1);
       exit((int)*(uint32_t *)(esp+4));
       //process_exit((int)arg[0]);
@@ -131,15 +135,17 @@ syscall_handler (struct intr_frame * f)
       break;
     
     case SYS_EXEC:
+      check_addr(esp+4);
       // get_argument(esp, arg, 1);
-      exec((char *)*(uint32_t *)(esp+4));
+      f->eax = exec((char *)*(uint32_t *)(esp+4));
       //process_execute((char *)arg[1]);
 
       break;
 
     case SYS_WAIT:
+      check_addr(esp+4);
       // get_argument(esp, arg, 1);
-      wait((tid_t)*(uint32_t *)(esp+4));
+      f->eax = wait((tid_t)*(uint32_t *)(esp+4));
       //process_wait((tid_t)arg[1]);
 
       break;
@@ -157,15 +163,21 @@ syscall_handler (struct intr_frame * f)
       break;
       
     case SYS_READ:
+      check_addr(esp+20);
+      check_addr(esp+24);
+      check_addr(esp+28);
       // get_argument(esp, arg, 3);
-      read((int)*(uint32_t *)(esp+4), (void *)*(uint32_t *)(esp+8), (unsigned)*(uint32_t *)(esp+12));
+      f->eax = read((int)*(uint32_t *)(esp+20), (void *)*(uint32_t *)(esp+24), (unsigned)*(uint32_t *)(esp+28));
 
       break;
       
     case SYS_WRITE:
+      check_addr(esp+20);
+      check_addr(esp+24);
+      check_addr(esp+28);
       // hex_dump(f->esp+20, f->esp+20, 100, 1); // debug
       // get_argument(esp, arg, 3); // int fd, const void* buffer, unsigned size
-      write((int)*(uint32_t *)(esp+20), (void *)*(uint32_t *)(esp+24), (unsigned)*(uint32_t *)(esp+28));
+      f->eax = write((int)*(uint32_t *)(esp+20), (void *)*(uint32_t *)(esp+24), (unsigned)*(uint32_t *)(esp+28));
 
       break;
       

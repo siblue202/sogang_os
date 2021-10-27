@@ -51,7 +51,7 @@ process_execute (const char *file_name)
   
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy); // file_name -> token
+  tid = thread_create (token, PRI_DEFAULT, start_process, fn_copy); // file_name -> token
 
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
@@ -80,7 +80,7 @@ start_process (void *file_name_)
     thread_exit ();
 
   //JGH
-  thread_current()->is_run = true; 
+  // thread_current()->is_run = true; 
   
 
   /* Start the user process by simulating a return from an
@@ -105,15 +105,35 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  struct thread *child = thread_current()->child;
+  /*
+  for(int i=0; i<1000000000; i++);
+  return -1;
+  */
 
-  while(child->is_run){
-    if(child->status == THREAD_DYING){
-      return -1;
+  // struct thread *child = thread_current()->child;
+
+  // while(child->is_run){
+  //   if(child->status == THREAD_DYING){
+  //     return -1;
+  //   }
+  //   continue;
+  // }
+  // return child->exit_status;
+
+  struct list_elem *e;
+  struct thread *t; // child thread
+  struct thread *c = thread_current(); // current thread
+
+  for(e= list_begin(&(c->child)); e != list_end(&(c->child)); e= list_next(e)){
+    t = list_entry(e, struct thread, child_elem);
+    if(child_tid == t->tid){
+      sema_down(&(t->c_sema));
+      list_remove(&(t->child_elem));
+      sema_up(&(t->mem_sema));
+      return t->exit_status;
     }
-    continue;
   }
-  return child->exit_status;
+  return -1;
 }
 
 /* Free the current process's resources. */
@@ -143,6 +163,8 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+    sema_up(&(cur->c_sema));
+    sema_down((&(cur->mem_sema)));
 }
 
 /* Sets up the CPU for running user code in the current
