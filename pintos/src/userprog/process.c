@@ -39,7 +39,7 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
-  /*
+  
   // JGH, argument parsing 
   char argument[256];
   char * next_argument;
@@ -48,7 +48,7 @@ process_execute (const char *file_name)
   char * token = strtok_r(argument, " ", &next_argument);
   // printf("%s\n", token); // debug
   // JGH_end
-  */
+  
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy); // file_name -> token
@@ -77,7 +77,7 @@ start_process (void *file_name_)
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) 
-    thread_exit (-1);
+    thread_exit ();
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -101,15 +101,14 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  while(1){
-    if()
-  }
+  int j;
+  for(int i=0; i<1000000000; i++);
   return -1;
 }
 
 /* Free the current process's resources. */
 void
-process_exit ()
+process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
@@ -277,7 +276,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     }
     argv[argc] = ptr;
   }
-  printf("argv[0] : %s\n", argv[0]); // debug 
+  // printf("argv[0] : %s\n", argv[0]); // debug 
   
   //JGH_end
 
@@ -376,7 +375,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     memcpy(*esp, argv[i], strlen(argv[i]) + 1);
     total_len += strlen(argv[i]) + 1;
     // printf(" >> argv[%d] : %s & addr : %p \n", i, argv[i], *esp); // debug
-    printf("%p\n", *esp); // debug
+    // printf("%p\n", *esp); // debug
     argv[i] = *esp;
   }
 
@@ -385,20 +384,20 @@ load (const char *file_name, void (**eip) (void), void **esp)
   if(total_len % 4 != 0){
     *esp -= 4 - (total_len % 4);
     // printf(" >> # 0 is %d \n", total_len%4); // debug
-    printf("%p\n", *esp); // debug
+    // printf("%p\n", *esp); // debug
   }
 
   // push NULL pointer
   // printf("push NULL pointer\n"); // debug 
   *esp -= 4;
   **(uint32_t **)esp = 0;
-  printf("%p\n", *esp); // debug
+  // printf("%p\n", *esp); // debug
 
   // push argv[i]
   // printf("push argv[i]\n"); // debug
   for(int i=argc-1; i>=0; i--){
     *esp -= 4;
-    printf("%p\n", *esp); // debug
+    // printf("%p\n", *esp); // debug
     **(uint32_t **)esp = argv[i];
     // printf(" >> %p\n", *esp); // debug
   }
@@ -406,20 +405,20 @@ load (const char *file_name, void (**eip) (void), void **esp)
   // push argv
   // printf("push argv\n"); // debug
   *esp -= 4;
-  printf("%p\n", *esp); // debug
+  // printf("%p\n", *esp); // debug
   **(uint32_t **)esp = (*esp) + 4;
   // printf(" >> %p\n", *esp+4); // debug
 
   // push argc
   // printf("push argc\n"); // debug
   *esp -= 4;
-  printf("%p\n", *esp); // debug
+  // printf("%p\n", *esp); // debug
   **(uint32_t **)esp = argc;
   // printf(" >> %d\n", argc); // debug
 
   // push fake 'return address '
   *esp -= 4;
-  printf("%p\n", *esp); // debug
+  // printf("%p\n", *esp); // debug
   **(uint32_t **)esp = 0;
 
   // hex_dump(*esp, *esp, 100, 1); // debug

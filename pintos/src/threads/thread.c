@@ -278,7 +278,7 @@ thread_tid (void)
 /* Deschedules the current thread and destroys it.  Never
    returns to the caller. */
 void
-thread_exit () //-> () -> (int status)
+thread_exit (void) //-> () -> (int status)
 {
   ASSERT (!intr_context ());
 

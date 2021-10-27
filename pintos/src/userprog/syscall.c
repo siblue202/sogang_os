@@ -9,7 +9,7 @@
 
 static void syscall_handler (struct intr_frame *);
 static void check_addr(void *addr);
-static void get_argument(void *esp, uint32_t *arg, int count);
+// static void get_argument(void *esp, uint32_t *arg, int count);
 
 
 void
@@ -22,10 +22,11 @@ static void
 check_addr(void *addr){
   if (!is_user_vaddr(addr)){
     printf("invalid addr. \n");
-    thread_exit();
+    exit(-1);
   }
 }
 
+/*
 static void
 get_argument(void *esp, uint32_t *arg, int count){
   // printf("start get_argument\n"); // debud
@@ -41,6 +42,7 @@ get_argument(void *esp, uint32_t *arg, int count){
   }
   // printf("arg get !\n"); // debug
 }
+*/
 
 void halt(void){
   shutdown_power_off();
@@ -49,7 +51,7 @@ void halt(void){
 
 void exit(int status){
   printf("%s: exit(%d)\n", thread_current()->name, status);
-  process_exit();
+  thread_exit();
 }
 
 tid_t exec(const char* cmd_line){
@@ -57,21 +59,32 @@ tid_t exec(const char* cmd_line){
 }
 
 int wait(tid_t pid){
-
+  return process_wait(pid);
 }
 
 int read(int fd, void* buffer, unsigned size){
-
+  int i;
+  if(fd ==0){
+    for(i=0; i<size; i++){
+      input_getc();
+    }
+    return i;
+  }
+  return -1;
 }
 
 int write(int fd, const void* buffer , unsigned size){
-
+  if(fd == 1){
+    putbuf(buffer, size);
+    return size; 
+  }
+  return 0;
 }
 
 static void
 syscall_handler (struct intr_frame * f) 
 {
-  uint32_t arg[3]; 
+  // uint32_t arg[3]; 
 
   // //getting stack_pointer
   void *esp = f->esp;
@@ -90,33 +103,32 @@ syscall_handler (struct intr_frame * f)
   + int fibonacci(int n)
   + int max_of_four_int(int a, int b, int c, int d)
   */
- hex_dump(f->esp, f->esp, 100, 1);
+//  hex_dump(f->esp, f->esp, 100, 1); // debug
 
 
   switch (number) // (*(uint32_t *)(f->esp))
   {
     case SYS_HALT:
       halt();
-
       break;
     
     case SYS_EXIT:
-      get_argument(esp, arg, 1);
-      exit((int)arg[0]);
+      // get_argument(esp, arg, 1);
+      exit((int)*(uint32_t *)(esp+4));
       //process_exit((int)arg[0]);
 
       break;
     
     case SYS_EXEC:
-      get_argument(esp, arg, 1);
-      exec((char *)arg[0]);
+      // get_argument(esp, arg, 1);
+      exec((char *)*(uint32_t *)(esp+4));
       //process_execute((char *)arg[1]);
 
       break;
 
     case SYS_WAIT:
-      get_argument(esp, arg, 1);
-      wait((tid_t)arg[0]);
+      // get_argument(esp, arg, 1);
+      wait((tid_t)*(uint32_t *)(esp+4));
       //process_wait((tid_t)arg[1]);
 
       break;
@@ -134,13 +146,15 @@ syscall_handler (struct intr_frame * f)
       break;
       
     case SYS_READ:
-      //get_argument(esp, arg, 3);
+      // get_argument(esp, arg, 3);
+      read((int)*(uint32_t *)(esp+4), (void *)*(uint32_t *)(esp+8), (unsigned)*(uint32_t *)(esp+12));
 
       break;
       
     case SYS_WRITE:
       // hex_dump(f->esp+20, f->esp+20, 100, 1); // debug
-      //get_argument(esp, arg, 3); // int fd, const void* buffer, unsigned size
+      // get_argument(esp, arg, 3); // int fd, const void* buffer, unsigned size
+      write((int)*(uint32_t *)(esp+20), (void *)*(uint32_t *)(esp+24), (unsigned)*(uint32_t *)(esp+28));
 
       break;
       
