@@ -166,7 +166,7 @@ tid_t
 thread_create (const char *name, int priority,
                thread_func *function, void *aux) 
 {
-  struct thread *t;
+  struct thread *t; // child thread 
   struct kernel_thread_frame *kf;
   struct switch_entry_frame *ef;
   struct switch_threads_frame *sf;
@@ -182,6 +182,15 @@ thread_create (const char *name, int priority,
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
+
+  // JGH :: set child and parent  tid in struct thread 
+  // printf("current tid : %d,   just created tid : %d \n", thread_current()->tid, tid); // debug
+  t->parant_tid = thread_current()-> tid;
+
+  struct semaphore sema;
+  sema_init(&sema, 0);
+
+  t->p_sema = thread_current()->c_sema = &sema;
 
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
@@ -200,6 +209,9 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
+
+  // JGH
+  thread_current()->child = t;
 
   return tid;
 }
@@ -582,3 +594,21 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+// JGH : find given tid_t's struct thread
+struct thread * 
+thread_find(tid_t tid){
+  struct thread *t; 
+  struct list_elem *e;
+
+
+  for(e = list_begin(&all_list); e!= list_end(&all_list);e=e->next){
+    t = list_entry(e, struct thread, allelem);
+    if(t->tid == tid){
+      return t;
+    }
+  }
+  return NULL;
+}
+
+

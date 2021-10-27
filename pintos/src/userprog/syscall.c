@@ -51,10 +51,19 @@ void halt(void){
 
 void exit(int status){
   printf("%s: exit(%d)\n", thread_current()->name, status);
-  thread_exit();
+
+  if(status == 0){
+    thread_current()->is_run = false;
+  } 
+
+  thread_current()->exit_status = status;
+  sema_up(thread_current()->p_sema);
+
+  thread_exit(); // thread->state = thread_dying. 
 }
 
 tid_t exec(const char* cmd_line){
+  sema_down(thread_current()->c_sema);
   return process_execute(cmd_line);
 }
 
@@ -66,9 +75,11 @@ int read(int fd, void* buffer, unsigned size){
   int i;
   if(fd ==0){
     for(i=0; i<size; i++){
-      input_getc();
+      if(((char *)buffer)[i] == '\0'){
+        break;
+      }
+      return i;
     }
-    return i;
   }
   return -1;
 }

@@ -79,6 +79,10 @@ start_process (void *file_name_)
   if (!success) 
     thread_exit ();
 
+  //JGH
+  thread_current()->is_run = true; 
+  
+
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
@@ -101,9 +105,15 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  int j;
-  for(int i=0; i<1000000000; i++);
-  return -1;
+  struct thread *child = thread_current()->child;
+
+  while(child->is_run){
+    if(child->status == THREAD_DYING){
+      return -1;
+    }
+    continue;
+  }
+  return child->exit_status;
 }
 
 /* Free the current process's resources. */
