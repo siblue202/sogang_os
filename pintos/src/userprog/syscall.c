@@ -95,6 +95,33 @@ int write(int fd, const void* buffer , unsigned size){
   return 0;
 }
 
+int fibonacci(int n){
+  int t1 = 0;
+  int t2 = 1;
+  int nextTerm, i;
+
+  for(i = 1; i<= n; ++i){
+    nextTerm = t1 + t2;
+    t1 = t2;
+    t2 = nextTerm;
+  }
+
+  return t1;
+}
+
+int max_of_four_int(int a, int b, int c, int d){
+  int i;
+  int max = a;
+  int arr[3] = {b, c, d}; 
+
+  for (i = 0; i<3; i++){
+    if(max < arr[i]){
+      max = arr[i];
+    }
+  }
+  return max;
+}
+
 static void
 syscall_handler (struct intr_frame * f) 
 {
@@ -117,7 +144,7 @@ syscall_handler (struct intr_frame * f)
   + int fibonacci(int n)
   + int max_of_four_int(int a, int b, int c, int d)
   */
-//  hex_dump(f->esp, f->esp, 100, 1); // debug
+  // hex_dump(f->esp, f->esp, 100, 1); // debug
 
 
   switch (number) // (*(uint32_t *)(f->esp))
@@ -188,6 +215,20 @@ syscall_handler (struct intr_frame * f)
       break;
     
     case SYS_CLOSE:
+      break;
+
+    case SYS_FIBONACCI:
+      check_addr(esp+4);
+      f->eax = fibonacci((int)*(uint32_t *)(esp+4));
+
+      break;
+    case SYS_MAXOFFOURINT:
+      check_addr(esp+4);
+      check_addr(esp+8);
+      check_addr(esp+12);
+      check_addr(esp+16);
+      f->eax = max_of_four_int((int)*(uint32_t *)(esp+4), (int)*(uint32_t *)(esp+8), (int)*(uint32_t *)(esp+12), (int)*(uint32_t *)(esp+16));
+
       break;
       
     

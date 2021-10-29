@@ -127,9 +127,9 @@ process_wait (tid_t child_tid UNUSED)
   for(e= list_begin(&(c->child)); e != list_end(&(c->child)); e= list_next(e)){
     t = list_entry(e, struct thread, child_elem);
     if(child_tid == t->tid){
-      sema_down(&(t->c_sema));
+      sema_down(&(t->c_sema));  // wait for stop child thread running  
       list_remove(&(t->child_elem));
-      sema_up(&(t->mem_sema));
+      sema_up(&(t->mem_sema));  // release child process mem
       return t->exit_status;
     }
   }
@@ -163,8 +163,8 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
-    sema_up(&(cur->c_sema));
-    sema_down((&(cur->mem_sema)));
+    sema_up(&(cur->c_sema));        // done child process running 
+    sema_down((&(cur->mem_sema)));  // wait until releasing mem. 
 }
 
 /* Sets up the CPU for running user code in the current
