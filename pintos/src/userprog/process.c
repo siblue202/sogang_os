@@ -47,7 +47,11 @@ process_execute (const char *file_name)
   strlcpy (argument, file_name, PGSIZE);
   char * token = strtok_r(argument, " ", &next_argument);
   // printf("%s\n", token); // debug
+  if(filesys_open(token) == NULL){
+    return -1;
+  }
   // JGH_end
+
   
 
   /* Create a new thread to execute FILE_NAME. */
@@ -76,8 +80,11 @@ start_process (void *file_name_)
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  if (!success) 
-    thread_exit ();
+  if (!success){
+    // thread_current()->exit_status = -1; // JGH
+    // exit(-1); // JGH
+    thread_exit();
+  }
 
   //JGH
   // thread_current()->is_run = true; 

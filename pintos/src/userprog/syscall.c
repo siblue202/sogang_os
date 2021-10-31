@@ -78,6 +78,7 @@ int read(int fd, void* buffer, unsigned size){
   int i;
   if(fd ==0){
     for(i=0; i<size; i++){
+      input_getc();
       if(((char *)buffer)[i] == '\0'){
         break;
       }
