@@ -102,6 +102,8 @@ struct thread
    //  struct semaphore *p_sema;           /*shared sema with paraent*/
     struct semaphore mem_sema;         /* process_wait()에서 list_remove를 수행하기 위해 sema 사용 */
 
+    struct file* fd[128];              /* file_descriptor */
+
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 

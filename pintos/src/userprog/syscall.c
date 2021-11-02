@@ -6,6 +6,7 @@
 #include "threads/vaddr.h" // for checking invalid address
 #include "devices/shutdown.h" // for SYS_HALT
 #include "userprog/process.h" // for SYS_EXEC
+#include "filesys/filesys.h"  // for SYS_CREATE, 
 
 static void syscall_handler (struct intr_frame *);
 static void check_addr(void *addr);
@@ -44,6 +45,7 @@ get_argument(void *esp, uint32_t *arg, int count){
 }
 */
 
+// proj1
 void halt(void){
   shutdown_power_off();
 }
@@ -122,6 +124,35 @@ int max_of_four_int(int a, int b, int c, int d){
   }
   return max;
 }
+//proj1 
+
+//proj2
+bool create (const char *file, unsigned initial_size){
+  bool success;
+  success = filesys_create(file, initial_size);
+  if(!success){
+    exit(-1);
+  }
+  return success;
+}
+
+bool remove (const char *file){
+  bool success; 
+  success = filesys_remove(file);
+  if(!success){
+    exit(-1);
+  }
+  return success;
+}
+
+int open (const char *file){
+  struct file * file = NULL;
+}
+int filesize (int fd);
+void seek (int fd, unsigned position);
+unsigned tell (int fd);
+void close (int fd);
+//proj2
 
 static void
 syscall_handler (struct intr_frame * f) 
@@ -152,6 +183,7 @@ syscall_handler (struct intr_frame * f)
   {
     case SYS_HALT:
       halt();
+
       break;
     
     case SYS_EXIT:
@@ -179,15 +211,28 @@ syscall_handler (struct intr_frame * f)
       break;
 
     case SYS_CREATE:
+      check_addr(esp+4);
+      check_addr(esp+8);
+      f->eax = create((char *)*(uint32_t *)(esp+4), (unsigned)*(uint32_t *)(esp+8));
+
       break;
       
     case SYS_REMOVE:
+      check_addr(esp+4);
+      f->eax = remove((char *)*(uint32_t *)(esp+4));
+
       break;
       
     case SYS_OPEN:
+      check_addr(esp+4);
+      f->eax = open((char *)*(uint32_t *)(esp+4));
+
       break;
       
     case SYS_FILESIZE:
+      check_addr(esp+4);
+      f->eax = filesize((int)*(uint32_t *)(esp+4));
+
       break;
       
     case SYS_READ:
@@ -210,12 +255,22 @@ syscall_handler (struct intr_frame * f)
       break;
       
     case SYS_SEEK:
+      check_addr(esp+4);
+      check_addr(esp+8);
+      seek((int)*(uint32_t *)(esp+4), (unsigned)*(uint32_t *)(esp+8));
+
       break;
       
     case SYS_TELL:
+      check_addr(esp+4);
+      f->eax = tell((int)*(uint32_t *)(esp+4));
+
       break;
     
     case SYS_CLOSE:
+      check_addr(esp+4);
+      close((int)*(uint32_t *)(esp+4));
+
       break;
 
     case SYS_FIBONACCI:
