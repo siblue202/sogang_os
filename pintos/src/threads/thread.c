@@ -11,9 +11,12 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "filesys/file.h" 
+
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
+//JGH 
 
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
@@ -101,6 +104,12 @@ thread_init (void)
   sema_init(&(initial_thread->c_sema), 0);
   sema_init(&(initial_thread->mem_sema), 0);
   list_init(&(initial_thread->child));
+
+  //JGH 
+  for(int i =0; i<128; i++){
+    initial_thread->fd[i] = NULL;
+  }
+  //JGH_END
 
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
@@ -190,6 +199,7 @@ thread_create (const char *name, int priority,
   tid = t->tid = allocate_tid ();
 
   // JGH :: set child and parent  tid in struct thread 
+
   // printf("current tid : %d,   just created tid : %d \n", thread_current()->tid, tid); // debug
   // t->parant_tid = thread_current()-> tid;
 
@@ -204,6 +214,11 @@ thread_create (const char *name, int priority,
   list_init(&(t->child));
   list_push_back(&(thread_current()->child), &(t->child_elem));
   // printf("init complete\n");
+
+  for(int i=0; i<128; i++){
+    t->fd[i] = NULL;
+  }
+  // JGH_END
 
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
@@ -305,7 +320,15 @@ thread_tid (void)
 void
 thread_exit (void) //-> () -> (int status)
 {
-  ASSERT (!intr_context ());
+  ASSERT (!intr_context ()); 
+
+  //JGH 
+  for(int i=0; i<128; i++){
+    if(thread_current()->fd[i] != NULL){
+      // file_close(thread_current()->fd[i]);
+      thread_current()->fd[i] = NULL;
+    }
+  }
 
 #ifdef USERPROG
   process_exit (); //-> () -> (status)

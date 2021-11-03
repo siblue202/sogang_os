@@ -6,7 +6,8 @@
 #include "threads/vaddr.h" // for checking invalid address
 #include "devices/shutdown.h" // for SYS_HALT
 #include "userprog/process.h" // for SYS_EXEC
-#include "filesys/filesys.h"  // for SYS_CREATE, 
+#include "filesys/filesys.h"  // for SYS_CREATE, REMOVE, OPEN 
+#include "filesys/file.h"     // for SYS_FILESIZE, 
 
 static void syscall_handler (struct intr_frame *);
 static void check_addr(void *addr);
@@ -146,12 +147,44 @@ bool remove (const char *file){
 }
 
 int open (const char *file){
-  struct file * file = NULL;
+  struct file * target_file;
+  target_file = NULL;
+  int file_index = -1;
+
+  target_file = filesys_open(file);
+
+  for(int i=3; i<128; i++){
+     if(thread_current()->fd[i] == NULL){
+       thread_current()->fd[i] = target_file;
+       file_index = i;
+       break;
+     }
+  }
+
+  if(file == NULL){
+    return -1;
+  }
+  return file_index;
 }
-int filesize (int fd);
-void seek (int fd, unsigned position);
-unsigned tell (int fd);
-void close (int fd);
+
+int filesize (int fd){
+  return file_length(thread_current()->fd[fd]);
+}
+
+void seek (int fd, unsigned position){
+  file_seek(thread_current()->fd[fd], position);
+}
+
+unsigned tell (int fd){
+  return file_tell(thread_current()->fd[fd]);
+}
+
+void close (int fd){
+  struct file * target_file;
+  target_file = thread_current()->fd[fd];
+  thread_current()->fd[fd] = NULL;
+  file_close(target_file);
+}
 //proj2
 
 static void
