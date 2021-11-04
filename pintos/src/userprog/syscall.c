@@ -79,6 +79,10 @@ int wait(tid_t pid){
 
 int read(int fd, void* buffer, unsigned size){
   int i;
+
+  // for read-bad-ptr
+  check_addr(buffer);
+
   if(fd ==0){
     for(i=0; i<size; i++){
       input_getc();
@@ -87,14 +91,28 @@ int read(int fd, void* buffer, unsigned size){
       }
       return i;
     }
+  } else if(3 <= fd && fd <= 128){
+    struct file* target_file = NULL;
+    target_file = thread_current()->fd[fd];
+    i = file_read(target_file, buffer, size);
+
+    return i;
   }
+  
   return -1;
 }
 
 int write(int fd, const void* buffer , unsigned size){
+  // for write-bad-ptr
+  check_addr(buffer);
+
   if(fd == 1){
     putbuf(buffer, size);
     return size; 
+  } else if(3 <= fd && fd <= 128){
+    struct file* target_file = NULL;
+    target_file = thread_current()->fd[fd];
+    return file_write(target_file, buffer, size);
   }
   return 0;
 }
@@ -130,10 +148,14 @@ int max_of_four_int(int a, int b, int c, int d){
 //proj2
 bool create (const char *file, unsigned initial_size){
   bool success;
-  success = filesys_create(file, initial_size);
-  if(!success){
+
+  // for create-null
+  if(file == NULL){
     exit(-1);
   }
+
+  success = filesys_create(file, initial_size);
+
   return success;
 }
 
@@ -151,6 +173,11 @@ int open (const char *file){
   target_file = NULL;
   int file_index = -1;
 
+  // for open-null
+  if(file == NULL){
+    exit(-1);
+  }
+
   target_file = filesys_open(file);
 
   for(int i=3; i<128; i++){
@@ -161,9 +188,10 @@ int open (const char *file){
      }
   }
 
-  if(file == NULL){
+  if(target_file == NULL){
     return -1;
   }
+
   return file_index;
 }
 
@@ -269,15 +297,15 @@ syscall_handler (struct intr_frame * f)
       break;
       
     case SYS_READ:
-      check_addr(esp+20);
-      check_addr(esp+24);
-      check_addr(esp+28);
+      check_addr(esp+4);
+      check_addr(esp+8);
+      check_addr(esp+12);
       // get_argument(esp, arg, 3);
-      f->eax = read((int)*(uint32_t *)(esp+20), (void *)*(uint32_t *)(esp+24), (unsigned)*(uint32_t *)(esp+28));
+      f->eax = read((int)*(uint32_t *)(esp+4), (void *)*(uint32_t *)(esp+8), (unsigned)*(uint32_t *)(esp+12));
 
       break;
       
-    case SYS_WRITE:
+    case SYS_WRITE:      
       check_addr(esp+20);
       check_addr(esp+24);
       check_addr(esp+28);
