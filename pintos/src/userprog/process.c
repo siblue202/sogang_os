@@ -123,7 +123,7 @@ process_wait (tid_t child_tid UNUSED)
   //   if(child->status == THREAD_DYING){
   //     return -1;
   //   }
-  //   continue;
+  //   continue;c_
   // }
   // return child->exit_status;
 

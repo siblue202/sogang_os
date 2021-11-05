@@ -3,6 +3,8 @@
 
 #include "threads/thread.h" // for tid_t
 
+// for syscall read & write
+
 void syscall_init (void);
 
 //JGH_sogang_proj1

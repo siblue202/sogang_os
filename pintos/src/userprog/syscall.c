@@ -8,15 +8,29 @@
 #include "userprog/process.h" // for SYS_EXEC
 #include "filesys/filesys.h"  // for SYS_CREATE, REMOVE, OPEN 
 #include "filesys/file.h"     // for SYS_FILESIZE, 
+#include "threads/synch.h"
 
 static void syscall_handler (struct intr_frame *);
 static void check_addr(void *addr);
 // static void get_argument(void *esp, uint32_t *arg, int count);
 
 
+struct lock fd_lock;
+
+struct semaphore w_sema; // in ppt, wrt
+struct semaphore r_sema; // in ppt, mutex
+int readcount = 0;
+
+
 void
 syscall_init (void) 
 {
+  //JGH
+  lock_init(&fd_lock);
+  sema_init(&r_sema, 1);
+  sema_init(&w_sema, 1);
+  //JGH_END
+
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
@@ -77,6 +91,8 @@ int wait(tid_t pid){
   return process_wait(pid);
 }
 
+
+// use sync with first readers-writers
 int read(int fd, void* buffer, unsigned size){
   int i;
 
@@ -94,6 +110,8 @@ int read(int fd, void* buffer, unsigned size){
   } else if(3 <= fd && fd <= 128){
     struct file* target_file = NULL;
     target_file = thread_current()->fd[fd];
+
+    // cs
     i = file_read(target_file, buffer, size);
 
     return i;
@@ -106,13 +124,18 @@ int write(int fd, const void* buffer , unsigned size){
   // for write-bad-ptr
   check_addr(buffer);
 
+  int result_write = 0;
+
   if(fd == 1){
     putbuf(buffer, size);
     return size; 
   } else if(3 <= fd && fd <= 128){
     struct file* target_file = NULL;
     target_file = thread_current()->fd[fd];
-    return file_write(target_file, buffer, size);
+
+    result_write = file_write(target_file, buffer, size);
+
+    return result_write;
   }
   return 0;
 }
@@ -286,8 +309,11 @@ syscall_handler (struct intr_frame * f)
       
     case SYS_OPEN:
       check_addr(esp+4);
-      f->eax = open((char *)*(uint32_t *)(esp+4));
 
+      lock_acquire(&fd_lock);
+      f->eax = open((char *)*(uint32_t *)(esp+4));
+      lock_release(&fd_lock);
+      
       break;
       
     case SYS_FILESIZE:
@@ -297,21 +323,46 @@ syscall_handler (struct intr_frame * f)
       break;
       
     case SYS_READ:
+      sema_down(&r_sema);
+      readcount ++;
+      if(readcount == 1){
+        sema_down(&w_sema);
+      }
+      sema_up(&r_sema);
+
+      lock_acquire(&fd_lock);
+
       check_addr(esp+4);
       check_addr(esp+8);
       check_addr(esp+12);
       // get_argument(esp, arg, 3);
       f->eax = read((int)*(uint32_t *)(esp+4), (void *)*(uint32_t *)(esp+8), (unsigned)*(uint32_t *)(esp+12));
+      lock_release(&fd_lock);
+
+      sema_down(&r_sema);
+      readcount--;
+      if(readcount ==0){
+        sema_up(&w_sema);
+      }
+      sema_up(&r_sema);
 
       break;
       
     case SYS_WRITE:      
+      sema_down(&w_sema);
+
+      lock_acquire(&fd_lock);
+
       check_addr(esp+20);
       check_addr(esp+24);
       check_addr(esp+28);
       // hex_dump(f->esp+20, f->esp+20, 100, 1); // debug
       // get_argument(esp, arg, 3); // int fd, const void* buffer, unsigned size
       f->eax = write((int)*(uint32_t *)(esp+20), (void *)*(uint32_t *)(esp+24), (unsigned)*(uint32_t *)(esp+28));
+
+      lock_release(&fd_lock);
+
+      sema_up(&w_sema);
 
       break;
       
