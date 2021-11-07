@@ -99,23 +99,52 @@ int read(int fd, void* buffer, unsigned size){
   // for read-bad-ptr
   check_addr(buffer);
 
+  // sema_down(&r_sema);
+  // readcount ++;
+  // if(readcount == 1){
+  //   sema_down(&w_sema);
+  // }
+  // sema_up(&r_sema);
+
+
   if(fd ==0){
     for(i=0; i<size; i++){
       input_getc();
       if(((char *)buffer)[i] == '\0'){
         break;
       }
+
+      // lock_release(&fd_lock);
+
+      // sema_down(&r_sema);
+      // readcount--;
+      // if(readcount ==0){
+      //   sema_up(&w_sema);
+      // }
+      // sema_up(&r_sema);
       return i;
     }
   } else if(3 <= fd && fd <= 128){
     struct file* target_file = NULL;
     target_file = thread_current()->fd[fd];
 
+    lock_acquire(&fd_lock);
     // cs
     i = file_read(target_file, buffer, size);
 
+    lock_release(&fd_lock);
+
+    // sema_down(&r_sema);
+    // readcount--;
+    // if(readcount ==0){
+    //   sema_up(&w_sema);
+    // }
+    // sema_up(&r_sema);
+
     return i;
   }
+
+  
   
   return -1;
 }
@@ -124,16 +153,25 @@ int write(int fd, const void* buffer , unsigned size){
   // for write-bad-ptr
   check_addr(buffer);
 
+  // sema_down(&w_sema);
+
   int result_write = 0;
 
   if(fd == 1){
     putbuf(buffer, size);
+
+    // lock_release(&fd_lock);
+    // sema_up(&w_sema);
     return size; 
   } else if(3 <= fd && fd <= 128){
     struct file* target_file = NULL;
     target_file = thread_current()->fd[fd];
+    lock_acquire(&fd_lock);
 
     result_write = file_write(target_file, buffer, size);
+
+    lock_release(&fd_lock);
+    // sema_up(&w_sema);
 
     return result_write;
   }
@@ -209,6 +247,11 @@ int open (const char *file){
        file_index = i;
        break;
      }
+  }
+
+  // for rox testcase 
+  if(strcmp(file, thread_current()->name) == 0){
+    file_deny_write(target_file);
   }
 
   if(target_file == NULL){
@@ -323,35 +366,16 @@ syscall_handler (struct intr_frame * f)
       break;
       
     case SYS_READ:
-      sema_down(&r_sema);
-      readcount ++;
-      if(readcount == 1){
-        sema_down(&w_sema);
-      }
-      sema_up(&r_sema);
-
-      lock_acquire(&fd_lock);
-
       check_addr(esp+4);
       check_addr(esp+8);
       check_addr(esp+12);
       // get_argument(esp, arg, 3);
       f->eax = read((int)*(uint32_t *)(esp+4), (void *)*(uint32_t *)(esp+8), (unsigned)*(uint32_t *)(esp+12));
-      lock_release(&fd_lock);
-
-      sema_down(&r_sema);
-      readcount--;
-      if(readcount ==0){
-        sema_up(&w_sema);
-      }
-      sema_up(&r_sema);
 
       break;
       
     case SYS_WRITE:      
-      sema_down(&w_sema);
 
-      lock_acquire(&fd_lock);
 
       check_addr(esp+20);
       check_addr(esp+24);
@@ -360,9 +384,7 @@ syscall_handler (struct intr_frame * f)
       // get_argument(esp, arg, 3); // int fd, const void* buffer, unsigned size
       f->eax = write((int)*(uint32_t *)(esp+20), (void *)*(uint32_t *)(esp+24), (unsigned)*(uint32_t *)(esp+28));
 
-      lock_release(&fd_lock);
-
-      sema_up(&w_sema);
+      
 
       break;
       
