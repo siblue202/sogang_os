@@ -105,6 +105,8 @@ int read(int fd, void* buffer, unsigned size){
   //   sema_down(&w_sema);
   // }
   // sema_up(&r_sema);
+  
+  lock_acquire(&fd_lock);
 
 
   if(fd ==0){
@@ -122,13 +124,19 @@ int read(int fd, void* buffer, unsigned size){
       //   sema_up(&w_sema);
       // }
       // sema_up(&r_sema);
+      lock_release(&fd_lock);
       return i;
     }
   } else if(3 <= fd && fd <= 128){
     struct file* target_file = NULL;
     target_file = thread_current()->fd[fd];
 
-    lock_acquire(&fd_lock);
+    // for read-bad-fd
+    if(target_file == NULL){
+      lock_release(&fd_lock);
+      exit(-1);
+    }
+
     // cs
     i = file_read(target_file, buffer, size);
 
@@ -142,10 +150,12 @@ int read(int fd, void* buffer, unsigned size){
     // sema_up(&r_sema);
 
     return i;
+  } else{
+    // for read-stdout
+    lock_release(&fd_lock);
+    exit(-1);
   }
 
-  
-  
   return -1;
 }
 
@@ -154,7 +164,7 @@ int write(int fd, const void* buffer , unsigned size){
   check_addr(buffer);
 
   // sema_down(&w_sema);
-
+  lock_acquire(&fd_lock);
   int result_write = 0;
 
   if(fd == 1){
@@ -162,11 +172,16 @@ int write(int fd, const void* buffer , unsigned size){
 
     // lock_release(&fd_lock);
     // sema_up(&w_sema);
+    lock_release(&fd_lock);
     return size; 
   } else if(3 <= fd && fd <= 128){
     struct file* target_file = NULL;
     target_file = thread_current()->fd[fd];
-    lock_acquire(&fd_lock);
+    // for write-bad-fd
+    if(target_file == NULL){
+      lock_release(&fd_lock);
+      exit(-1);
+    }
 
     result_write = file_write(target_file, buffer, size);
 
@@ -174,6 +189,9 @@ int write(int fd, const void* buffer , unsigned size){
     // sema_up(&w_sema);
 
     return result_write;
+  } else{
+    lock_release(&fd_lock);
+    exit(-1);
   }
   return 0;
 }
@@ -239,6 +257,8 @@ int open (const char *file){
     exit(-1);
   }
 
+  // lock_acquire(&fd_lock);
+
   target_file = filesys_open(file);
 
   for(int i=3; i<128; i++){
@@ -253,6 +273,8 @@ int open (const char *file){
   if(strcmp(file, thread_current()->name) == 0){
     file_deny_write(target_file);
   }
+
+  // lock_release(&fd_lock);
 
   if(target_file == NULL){
     return -1;

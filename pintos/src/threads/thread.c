@@ -103,6 +103,8 @@ thread_init (void)
   //JGH
   sema_init(&(initial_thread->c_sema), 0);
   sema_init(&(initial_thread->mem_sema), 0);
+  sema_init(&(initial_thread->load_sema), 0);
+  sema_init(&(initial_thread->exec_sema), 0);
   list_init(&(initial_thread->child));
 
   //JGH 
@@ -211,6 +213,8 @@ thread_create (const char *name, int priority,
   // printf("init start\n");
   sema_init(&(t->c_sema), 0);
   sema_init(&(t->mem_sema), 0);
+  sema_init(&(t->load_sema), 0);
+  sema_init(&(t->exec_sema), 0);
   list_init(&(t->child));
   list_push_back(&(thread_current()->child), &(t->child_elem));
   // printf("init complete\n");
@@ -322,13 +326,14 @@ thread_exit (void) //-> () -> (int status)
 {
   ASSERT (!intr_context ()); 
 
-  //JGH 
-  for(int i=0; i<128; i++){
-    if(thread_current()->fd[i] != NULL){
-      // file_close(thread_current()->fd[i]);
-      thread_current()->fd[i] = NULL;
-    }
-  }
+  // //JGH move to process.c
+  // for(int i=0; i<128; i++){
+  //   if(thread_current()->fd[i] != NULL){
+  //     // file_close(thread_current()->fd[i]);
+  //     file_close(thread_current()->fd[i]);
+  //     thread_current()->fd[i] = NULL;
+  //   }
+  // }
 
 #ifdef USERPROG
   process_exit (); //-> () -> (status)

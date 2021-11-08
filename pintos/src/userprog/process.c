@@ -52,10 +52,27 @@ process_execute (const char *file_name)
   }
   // JGH_end
 
-  
-
-  /* Create a new thread to execute FILE_NAME. */
+  /* Create a new thread to execute FILE_NAME. */  
   tid = thread_create (token, PRI_DEFAULT, start_process, fn_copy); // file_name -> token
+  // JGH 
+  struct list_elem *e;
+  struct thread *t; // child thread
+  struct thread *c = thread_current(); // current thread
+
+  for(e= list_begin(&(c->child)); e != list_end(&(c->child)); e= list_next(e)){
+    t = list_entry(e, struct thread, child_elem);
+    if(tid == t->tid){
+      sema_down(&(t->load_sema));
+    } 
+  }
+
+  if (tid == -1 || !t->load_success)
+    {
+      return -1;
+    }
+
+  
+  // JGH_END
 
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
@@ -76,10 +93,18 @@ start_process (void *file_name_)
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
+
   success = load (file_name, &if_.eip, &if_.esp);
+  // JGH 
+  thread_current()->load_success = success;
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
+
+  // JGH 
+  sema_up(&(thread_current()->load_sema));
+  // JGH_END
+
   if (!success){
     // thread_current()->exit_status = -1; // JGH
     // exit(-1); // JGH
@@ -169,6 +194,14 @@ process_exit (void)
       cur->pagedir = NULL;
       pagedir_activate (NULL);
       pagedir_destroy (pd);
+    }
+
+    //JGH 
+    for(int i=0; i<128; i++){
+      if(thread_current()->fd[i] != NULL){
+       file_close(thread_current()->fd[i]);
+       thread_current()->fd[i] = NULL;
+      }
     }
     sema_up(&(cur->c_sema));        // done child process running 
     sema_down((&(cur->mem_sema)));  // wait until releasing mem. 
@@ -316,6 +349,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     argv[argc] = ptr;
   }
   // printf("argv[0] : %s\n", argv[0]); // debug 
+
   
   //JGH_end
 
@@ -324,6 +358,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
+      // printf("why is %s failed.. & thread name : %s \n", argv[0], thread_current()->name); // debug
       goto done; 
     }
 
