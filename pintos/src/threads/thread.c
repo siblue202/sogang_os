@@ -104,7 +104,7 @@ thread_init (void)
   sema_init(&(initial_thread->c_sema), 0);
   sema_init(&(initial_thread->mem_sema), 0);
   sema_init(&(initial_thread->load_sema), 0);
-  sema_init(&(initial_thread->exec_sema), 0);
+  // sema_init(&(initial_thread->exec_sema), 0);
   list_init(&(initial_thread->child));
 
   //JGH 
@@ -214,7 +214,7 @@ thread_create (const char *name, int priority,
   sema_init(&(t->c_sema), 0);
   sema_init(&(t->mem_sema), 0);
   sema_init(&(t->load_sema), 0);
-  sema_init(&(t->exec_sema), 0);
+  // sema_init(&(t->exec_sema), 0);
   list_init(&(t->child));
   list_push_back(&(thread_current()->child), &(t->child_elem));
   // printf("init complete\n");

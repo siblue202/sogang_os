@@ -17,9 +17,9 @@ static void check_addr(void *addr);
 
 struct lock fd_lock;
 
-struct semaphore w_sema; // in ppt, wrt
-struct semaphore r_sema; // in ppt, mutex
-int readcount = 0;
+// struct semaphore w_sema; // in ppt, wrt
+// struct semaphore r_sema; // in ppt, mutex
+// int readcount = 0;
 
 
 void
@@ -27,8 +27,8 @@ syscall_init (void)
 {
   //JGH
   lock_init(&fd_lock);
-  sema_init(&r_sema, 1);
-  sema_init(&w_sema, 1);
+  // sema_init(&r_sema, 1);
+  // sema_init(&w_sema, 1);
   //JGH_END
 
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");

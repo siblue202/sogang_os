@@ -104,7 +104,7 @@ struct thread
     struct semaphore load_sema;        /* child process가 정상적으로 load 하는 것을 대기 */
    //  struct semaphore exec_sema;        /* exec 중 sync를 맞추기 위해 */ not used.. 
 
-    bool load_success;
+    bool load_success;                 /* for multi-OOM Testcase */
 
     struct file* fd[128];              /* file_descriptor */
 
