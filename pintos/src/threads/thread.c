@@ -12,6 +12,8 @@
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 #include "filesys/file.h" 
+// jgh 
+#include "devices/timer.h"
 
 #ifdef USERPROG
 #include "userprog/process.h"
@@ -26,6 +28,11 @@
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list;
+
+/* JGH 
+list of sleeping process. 
+checking every ticks to wake up (timer_interrupt() -> thread_tick() -> thread_wake_up()) */ 
+struct list sleeping_list;
 
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
@@ -100,6 +107,9 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
+  // jgh 
+  list_init (&sleeping_list);
+  // jgh_end
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -164,9 +174,9 @@ thread_tick (void)
   /* Project #3. */
   thread_wake_up ();
 
-  /* Project #3. */
-  if (thread_prior_aging == true)
-    thread_aging();
+  // /* Project #3. */
+  // if (thread_prior_aging == true)
+  //   thread_aging();
   #endif
 }
 
@@ -650,20 +660,57 @@ allocate_tid (void)
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 
-// JGH : find given tid_t's struct thread
-struct thread * 
-thread_find(tid_t tid){
-  struct thread *t; 
-  struct list_elem *e;
+// // JGH : find given tid_t's struct thread
+// struct thread * 
+// thread_find(tid_t tid){
+//   struct thread *t; 
+//   struct list_elem *e;
 
 
-  for(e = list_begin(&all_list); e!= list_end(&all_list);e=e->next){
-    t = list_entry(e, struct thread, allelem);
-    if(t->tid == tid){
-      return t;
-    }
-  }
-  return NULL;
+//   for(e = list_begin(&all_list); e!= list_end(&all_list);e=e->next){
+//     t = list_entry(e, struct thread, allelem);
+//     if(t->tid == tid){
+//       return t;
+//     }
+//   }
+//   return NULL;
+// }
+
+/* timer_sleep() call thread_sleeping <- should be INTR ON, so didn't call thread_block()
+1. set sleep_time 
+2. block thread
+3. push in sleeping_list */
+
+void 
+thread_sleeping(int64_t ticks){
+  struct thread *c = thread_current();
+
+  c->sleep_time = ticks;
+  c->status = THREAD_BLOCKED;
+  list_push_back(&sleeping_list, &c->elem);
 }
 
 
+/* timer_interrupt()-> thread_tick()-> thread_wake_up()
+look up thread struct of first element in sleeping_list
+if time when thread was slept < 100 
+1. pop at sleep_list
+2. set sleep_time, 0
+3. set thread status THREAD_READY
+4. push in ready_list
+    */
+void 
+thread_wake_up(){
+  struct list_elem *e;
+  e = list_begin(&sleeping_list);
+  struct thread *c = list_entry(e, struct thread, elem);
+
+  if (timer_elapsed(c->sleep_time) > 100){
+    list_pop_front(&sleeping_list);
+    c->sleep_time = 0;
+    c->status = THREAD_READY;
+    
+    list_push_back(&ready_list, &c->elem);
+  }
+
+}
