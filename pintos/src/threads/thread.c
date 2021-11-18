@@ -119,6 +119,8 @@ thread_init (void)
   sema_init(&(initial_thread->c_sema), 0);
   sema_init(&(initial_thread->mem_sema), 0);
   sema_init(&(initial_thread->load_sema), 0);
+  sema_init(&(initial_thread->sleeping_sema), 0);
+  sema_init(&(initial_thread->wakeup_sema), 0);
   // sema_init(&(initial_thread->exec_sema), 0);
   list_init(&(initial_thread->child));
 
@@ -238,6 +240,8 @@ thread_create (const char *name, int priority,
   sema_init(&(t->c_sema), 0);
   sema_init(&(t->mem_sema), 0);
   sema_init(&(t->load_sema), 0);
+  sema_init(&(t->sleeping_sema), 0);
+  sema_init(&(t->wakeup_sema), 0);
   // sema_init(&(t->exec_sema), 0);
   list_init(&(t->child));
   list_push_back(&(thread_current()->child), &(t->child_elem));
@@ -688,6 +692,8 @@ thread_sleeping(int64_t ticks){
   c->sleep_time = ticks;
   c->status = THREAD_BLOCKED;
   list_push_back(&sleeping_list, &c->elem);
+  // printf("end thread_sleeping\n");
+  sema_up(&(c->sleeping_sema));
 }
 
 
@@ -701,16 +707,20 @@ if time when thread was slept < 100
     */
 void 
 thread_wake_up(){
-  struct list_elem *e;
-  e = list_begin(&sleeping_list);
-  struct thread *c = list_entry(e, struct thread, elem);
+  // printf("... start point thread_wakeup()\n");
+  if(! list_empty(&sleeping_list)){
+    struct list_elem *e;
+    e = list_begin(&sleeping_list);
+    struct thread *c = list_entry(e, struct thread, elem);
 
-  if (timer_elapsed(c->sleep_time) > 100){
-    list_pop_front(&sleeping_list);
-    c->sleep_time = 0;
-    c->status = THREAD_READY;
-    
-    list_push_back(&ready_list, &c->elem);
+    if (timer_elapsed(c->sleep_time) > 100){
+      list_pop_front(&sleeping_list);
+      c->sleep_time = 0;
+      c->status = THREAD_READY;
+      
+      list_push_back(&ready_list, &c->elem);
+    }
+    // printf("... end point thread_wakeup()\n");
+    sema_up(&(thread_current()->wakeup_sema));
   }
-
 }

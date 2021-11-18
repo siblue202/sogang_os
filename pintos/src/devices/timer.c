@@ -97,6 +97,9 @@ timer_sleep (int64_t ticks)
   //   thread_yield ();
   // jgh 
   thread_sleeping(ticks);
+  // printf("startg thread_sleeping in timer_sleep\n");
+  sema_down(&(thread_current()->sleeping_sema));
+
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -175,6 +178,8 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
+  // printf("start thread_wake_up() in timer_interrupt\n");
+  sema_down(&(thread_current()->wakeup_sema));
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer

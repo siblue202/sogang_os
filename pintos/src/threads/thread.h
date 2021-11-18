@@ -108,6 +108,8 @@ struct thread
     struct semaphore mem_sema;         /* process_wait()에서 list_remove를 수행하기 위해 sema 사용 */
     struct semaphore load_sema;        /* child process가 정상적으로 load 하는 것을 대기 */
    //  struct semaphore exec_sema;        /* exec 중 sync를 맞추기 위해 not used.. */
+    struct semaphore sleeping_sema;    /*   timer_sleep 할 때 사용할  sema */
+    struct semaphore wakeup_sema;      /* timer_interrupt  할 떄 사용할  sema */
 
     bool load_success;                 /* for multi-OOM Testcase */
     struct file* fd[128];              /* file_descriptor */
