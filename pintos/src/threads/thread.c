@@ -175,6 +175,7 @@ thread_tick (void)
   #ifndef USERPROG
   /* Project #3. */
   thread_wake_up ();
+  // sema_down(&t->sleeping_sema);
 
   // /* Project #3. */
   // if (thread_prior_aging == true)
@@ -680,7 +681,7 @@ uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 //   return NULL;
 // }
 
-/* timer_sleep() call thread_sleeping <- should be INTR ON, so didn't call thread_block()
+/* timer_sleep() call thread_sleeping 
 1. set sleep_time 
 2. block thread
 3. push in sleeping_list */
@@ -688,12 +689,19 @@ uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 void 
 thread_sleeping(int64_t ticks){
   struct thread *c = thread_current();
+  enum intr_level old_level;
 
-  c->sleep_time = ticks;
-  c->status = THREAD_BLOCKED;
-  list_push_back(&sleeping_list, &c->elem);
+  old_level = intr_disable ();
+
+  if(c != idle_thread){
+    c->sleep_time = ticks;
+    list_push_back(&sleeping_list, &c->elem);
+    thread_block();
+  }
+  intr_set_level (old_level);
+  
   // printf("end thread_sleeping\n");
-  sema_up(&(c->sleeping_sema));
+  // sema_up(&(c->sleeping_sema));
 }
 
 
@@ -703,24 +711,29 @@ if time when thread was slept < 100
 1. pop at sleep_list
 2. set sleep_time, 0
 3. set thread status THREAD_READY
-4. push in ready_list
+4. push in ready_listx
+5. thread_yield()
     */
 void 
 thread_wake_up(){
   // printf("... start point thread_wakeup()\n");
   if(! list_empty(&sleeping_list)){
     struct list_elem *e;
-    e = list_begin(&sleeping_list);
-    struct thread *c = list_entry(e, struct thread, elem);
+    int64_t start = timer_ticks ();
+    for(e = list_begin(&sleeping_list); e!= list_end(&sleeping_list); e=list_next(e)){
+      struct thread *c = list_entry(e, struct thread, elem);
 
-    if (timer_elapsed(c->sleep_time) > 100){
-      list_pop_front(&sleeping_list);
-      c->sleep_time = 0;
-      c->status = THREAD_READY;
-      
-      list_push_back(&ready_list, &c->elem);
+      if (start >= c->sleep_time && c->sleep_time != 0){
+        list_remove(e);
+        c->sleep_time = 0;
+        thread_unblock(c);
+      // thread_yield();
+      }
     }
+
+
+    
     // printf("... end point thread_wakeup()\n");
-    sema_up(&(thread_current()->wakeup_sema));
+    // sema_up(&(thread_current()->wakeup_sema));
   }
 }
