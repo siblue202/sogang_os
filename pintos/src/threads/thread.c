@@ -325,12 +325,11 @@ thread_unblock (struct thread *t)
   list_insert_ordered(&ready_list, &t->elem, value_more, NULL);
   t->status = THREAD_READY;
 
+  intr_set_level (old_level);
   //jgh 
   if(running_thread()->priority < list_entry(list_begin(&ready_list), struct thread, elem)->priority){
-    schedule();
+    thread_yield();
   }
-
-  intr_set_level (old_level);
 }
 
 /* Returns the name of the running thread. */
@@ -755,9 +754,6 @@ thread_wake_up(){
       // thread_yield();
       }
     }
-
-
-    
     // printf("... end point thread_wakeup()\n");
     // sema_up(&(thread_current()->wakeup_sema));
   }
@@ -779,12 +775,7 @@ thread_aging(){
   }
 
   if(running_thread()->priority < list_entry(list_begin(&ready_list), struct thread, elem)->priority){
-    enum intr_level old_level;
-    old_level = intr_disable ();
-    
-    schedule();
-
-    intr_set_level (old_level);
+    thread_yield();
   }
 }
 
