@@ -8,7 +8,7 @@
 
 #ifndef USERPROG
 /* Project #3. */
-bool thread_prior_aging;
+extern bool thread_prior_aging;
 #endif
 
 /* States in a thread's life cycle. */
@@ -108,14 +108,14 @@ struct thread
     struct semaphore mem_sema;         /* process_wait()에서 list_remove를 수행하기 위해 sema 사용 */
     struct semaphore load_sema;        /* child process가 정상적으로 load 하는 것을 대기 */
    //  struct semaphore exec_sema;        /* exec 중 sync를 맞추기 위해 not used.. */
-    struct semaphore sleeping_sema;    /*   timer_sleep 할 때 사용할  sema */
-    struct semaphore wakeup_sema;      /* timer_interrupt  할 떄 사용할  sema */
+   //  struct semaphore sleeping_sema;    /*   timer_sleep 할 때 사용할  sema */
+   //  struct semaphore wakeup_sema;      /* timer_interrupt  할 떄 사용할  sema */
 
     bool load_success;                 /* for multi-OOM Testcase */
     struct file* fd[128];              /* file_descriptor */
 
     // for alarm clock
-    int64_t sleep_time;
+    int64_t wakeup_time;
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
@@ -170,5 +170,6 @@ int thread_get_load_avg (void);
 // struct thread * thread_find(tid_t tid);
 void thread_sleeping(int64_t ticks);
 void thread_wake_up(void);
+// void thread_aging();
 
 #endif /* threads/thread.h */

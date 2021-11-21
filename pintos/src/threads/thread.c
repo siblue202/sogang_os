@@ -83,6 +83,13 @@ static void init_thread (struct thread *, const char *name, int priority);
 static bool is_thread (struct thread *) UNUSED;
 static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
+
+// JGH
+static bool
+value_more (const struct list_elem *a_, const struct list_elem *b_,
+            void *aux UNUSED);
+static void thread_aging(void);
+
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 
@@ -119,8 +126,8 @@ thread_init (void)
   sema_init(&(initial_thread->c_sema), 0);
   sema_init(&(initial_thread->mem_sema), 0);
   sema_init(&(initial_thread->load_sema), 0);
-  sema_init(&(initial_thread->sleeping_sema), 0);
-  sema_init(&(initial_thread->wakeup_sema), 0);
+  // sema_init(&(initial_thread->sleeping_sema), 0);
+  // sema_init(&(initial_thread->wakeup_sema), 0);
   // sema_init(&(initial_thread->exec_sema), 0);
   list_init(&(initial_thread->child));
 
@@ -178,8 +185,8 @@ thread_tick (void)
   // sema_down(&t->sleeping_sema);
 
   // /* Project #3. */
-  // if (thread_prior_aging == true)
-  //   thread_aging();
+  if (thread_prior_aging == true)
+    thread_aging();
   #endif
 }
 
@@ -241,8 +248,8 @@ thread_create (const char *name, int priority,
   sema_init(&(t->c_sema), 0);
   sema_init(&(t->mem_sema), 0);
   sema_init(&(t->load_sema), 0);
-  sema_init(&(t->sleeping_sema), 0);
-  sema_init(&(t->wakeup_sema), 0);
+  // sema_init(&(t->sleeping_sema), 0);
+  // sema_init(&(t->wakeup_sema), 0);
   // sema_init(&(t->exec_sema), 0);
   list_init(&(t->child));
   list_push_back(&(thread_current()->child), &(t->child_elem));
@@ -290,6 +297,9 @@ thread_block (void)
   ASSERT (intr_get_level () == INTR_OFF);
 
   thread_current ()->status = THREAD_BLOCKED;
+  //jgh
+  list_sort(&ready_list, value_more, NULL);
+  //jgh_end
   schedule ();
 }
 
@@ -310,8 +320,16 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
+  // list_push_back (&ready_list, &t->elem);
+  // jgh 
+  list_insert_ordered(&ready_list, &t->elem, value_more, NULL);
   t->status = THREAD_READY;
+
+  //jgh 
+  if(running_thread()->priority < list_entry(list_begin(&ready_list), struct thread, elem)->priority){
+    schedule();
+  }
+
   intr_set_level (old_level);
 }
 
@@ -374,6 +392,9 @@ thread_exit (void) //-> () -> (int status)
   intr_disable ();
   list_remove (&thread_current()->allelem);
   thread_current ()->status = THREAD_DYING;
+  //jgh
+  list_sort(&ready_list, value_more, NULL);
+  //jgh_end
   schedule ();
   NOT_REACHED ();
 }
@@ -390,8 +411,12 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
-    list_push_back (&ready_list, &cur->elem);
+    // list_push_back (&ready_list, &cur->elem);
+    list_insert_ordered(&ready_list, &cur->elem, value_more, NULL);
   cur->status = THREAD_READY;
+  //jgh
+  list_sort(&ready_list, value_more, NULL);
+  //jgh_end
   schedule ();
   intr_set_level (old_level);
 }
@@ -682,9 +707,10 @@ uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 // }
 
 /* timer_sleep() call thread_sleeping 
-1. set sleep_time 
-2. block thread
-3. push in sleeping_list */
+1. set wakeup_time
+2. push in sleeping_list 
+3. block thread(schedule will be executed in thread_block()) */
+
 
 void 
 thread_sleeping(int64_t ticks){
@@ -694,7 +720,7 @@ thread_sleeping(int64_t ticks){
   old_level = intr_disable ();
 
   if(c != idle_thread){
-    c->sleep_time = ticks;
+    c->wakeup_time = ticks;
     list_push_back(&sleeping_list, &c->elem);
     thread_block();
   }
@@ -709,10 +735,8 @@ thread_sleeping(int64_t ticks){
 look up thread struct of first element in sleeping_list
 if time when thread was slept < 100 
 1. pop at sleep_list
-2. set sleep_time, 0
-3. set thread status THREAD_READY
-4. push in ready_listx
-5. thread_yield()
+2. set wakeup_time, 0
+3. unblock thread (set thread status THREAD_READY in thread_unblock())
     */
 void 
 thread_wake_up(){
@@ -723,9 +747,10 @@ thread_wake_up(){
     for(e = list_begin(&sleeping_list); e!= list_end(&sleeping_list); e=list_next(e)){
       struct thread *c = list_entry(e, struct thread, elem);
 
-      if (start >= c->sleep_time && c->sleep_time != 0){
-        list_remove(e);
-        c->sleep_time = 0;
+      if (start >= c->wakeup_time){
+        e= list_remove(e);
+        e= list_prev(e);
+        c->wakeup_time = 0;
         thread_unblock(c);
       // thread_yield();
       }
@@ -736,4 +761,41 @@ thread_wake_up(){
     // printf("... end point thread_wakeup()\n");
     // sema_up(&(thread_current()->wakeup_sema));
   }
+}
+
+/*
+  every thick -> all of elems in sleeping_list are increase priority +1 
+  and 
+*/
+static void 
+thread_aging(){
+  struct list_elem *e;
+
+  for(e=list_begin(&ready_list); e!= list_end(&ready_list); e= list_next(e)){
+    struct thread *t = list_entry(e, struct thread, elem);
+    if(t->priority < PRI_MAX){
+      t->priority += 1;
+    }
+  }
+
+  if(running_thread()->priority < list_entry(list_begin(&ready_list), struct thread, elem)->priority){
+    enum intr_level old_level;
+    old_level = intr_disable ();
+    
+    schedule();
+
+    intr_set_level (old_level);
+  }
+}
+
+/* Returns true if value A is more than value B, false
+   otherwise. */
+static bool
+value_more (const struct list_elem *a_, const struct list_elem *b_,
+            void *aux UNUSED) 
+{
+  const struct thread *a = list_entry (a_, struct thread, elem);
+  const struct thread *b = list_entry (b_, struct thread, elem);
+  
+  return a->priority > b->priority;
 }
