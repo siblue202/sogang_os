@@ -69,6 +69,11 @@ sema_down (struct semaphore *sema)
   while (sema->value == 0) 
     {
       list_push_back (&sema->waiters, &thread_current ()->elem);
+      // jgh 
+      // if(running_thread()->priority < thread_current()->priority){
+      //   running_thread()->priority = thread_current()->priority;
+      // }
+      // jgh_end
       thread_block ();
     }
   sema->value--;
