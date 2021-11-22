@@ -77,7 +77,7 @@ bool thread_mlfqs;
 static void kernel_thread (thread_func *, void *aux);
 
 static void idle (void *aux UNUSED);
-// static struct thread *running_thread (void); // static -> x(in thread.h)
+static struct thread *running_thread (void); 
 static struct thread *next_thread_to_run (void);
 static void init_thread (struct thread *, const char *name, int priority);
 static bool is_thread (struct thread *) UNUSED;
@@ -85,9 +85,6 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 
 // JGH
-static bool
-value_more (const struct list_elem *a_, const struct list_elem *b_,
-            void *aux UNUSED);
 static void thread_aging(void);
 
 void thread_schedule_tail (struct thread *prev);
@@ -327,7 +324,7 @@ thread_unblock (struct thread *t)
 
   intr_set_level (old_level);
   //jgh 
-  if(running_thread()->priority < list_entry(list_begin(&ready_list), struct thread, elem)->priority){
+  if(thread_current()->priority < list_entry(list_begin(&ready_list), struct thread, elem)->priority){
     thread_yield();
   }
 }
@@ -774,14 +771,14 @@ thread_aging(){
     }
   }
 
-  if(running_thread()->priority < list_entry(list_begin(&ready_list), struct thread, elem)->priority){
+  if(thread_current()->priority < list_entry(list_begin(&ready_list), struct thread, elem)->priority){
     thread_yield();
   }
 }
 
 /* Returns true if value A is more than value B, false
    otherwise. */
-static bool
+bool
 value_more (const struct list_elem *a_, const struct list_elem *b_,
             void *aux UNUSED) 
 {
@@ -789,4 +786,16 @@ value_more (const struct list_elem *a_, const struct list_elem *b_,
   const struct thread *b = list_entry (b_, struct thread, elem);
   
   return a->priority > b->priority;
+}
+
+/* Returns true if value A is less than value B, false
+   otherwise. */
+bool
+value_less (const struct list_elem *a_, const struct list_elem *b_,
+            void *aux UNUSED) 
+{
+  const struct thread *a = list_entry (a_, struct thread, elem);
+  const struct thread *b = list_entry (b_, struct thread, elem);
+  
+  return a->priority < b->priority;
 }
