@@ -290,13 +290,17 @@ thread_create (const char *name, int priority,
 void
 thread_block (void) 
 {
+  printf("start thread_block()\n");
   ASSERT (!intr_context ());
   ASSERT (intr_get_level () == INTR_OFF);
+
+  printf("thread_status : %d \n", running_thread()->status);
 
   thread_current ()->status = THREAD_BLOCKED;
   //jgh
   list_sort(&ready_list, value_more, NULL);
   //jgh_end
+  printf("end thread_block() before schedule()\n");
   schedule ();
 }
 
@@ -311,6 +315,7 @@ thread_block (void)
 void
 thread_unblock (struct thread *t) 
 {
+  printf("start thread_unblock()\n");
   enum intr_level old_level;
 
   ASSERT (is_thread (t));
@@ -325,8 +330,10 @@ thread_unblock (struct thread *t)
   intr_set_level (old_level);
   //jgh 
   if(thread_current()->priority < list_entry(list_begin(&ready_list), struct thread, elem)->priority){
+    printf("end thread_unblock before thread_yield()\n");
     thread_yield();
   }
+  printf("end thread_unblock\n");
 }
 
 /* Returns the name of the running thread. */
@@ -367,6 +374,7 @@ thread_tid (void)
 void
 thread_exit (void) //-> () -> (int status)
 {
+  printf("start thread_exit()\n");
   ASSERT (!intr_context ()); 
 
   // //JGH move to process.c
@@ -391,6 +399,7 @@ thread_exit (void) //-> () -> (int status)
   //jgh
   list_sort(&ready_list, value_more, NULL);
   //jgh_end
+  printf("end thread_exit() (before schedule())\n");
   schedule ();
   NOT_REACHED ();
 }
@@ -400,6 +409,7 @@ thread_exit (void) //-> () -> (int status)
 void
 thread_yield (void) 
 {
+  printf("start thread_yield\n");
   struct thread *cur = thread_current ();
   enum intr_level old_level;
   
@@ -413,6 +423,7 @@ thread_yield (void)
   //jgh
   list_sort(&ready_list, value_more, NULL);
   //jgh_end
+  printf("end thread_yield(before schedule())\n");
   schedule ();
   intr_set_level (old_level);
 }
@@ -710,6 +721,7 @@ uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 
 void 
 thread_sleeping(int64_t ticks){
+  printf("start sleeping \n");
   struct thread *c = thread_current();
   enum intr_level old_level;
 
@@ -721,6 +733,7 @@ thread_sleeping(int64_t ticks){
     thread_block();
   }
   intr_set_level (old_level);
+  printf("end sleeping\n");
   
   // printf("end thread_sleeping\n");
   // sema_up(&(c->sleeping_sema));
@@ -737,6 +750,7 @@ if time when thread was slept < 100
 void 
 thread_wake_up(){
   // printf("... start point thread_wakeup()\n");
+  printf("start wake up\n");
   if(! list_empty(&sleeping_list)){
     struct list_elem *e;
     int64_t start = timer_ticks ();
@@ -754,6 +768,7 @@ thread_wake_up(){
     // printf("... end point thread_wakeup()\n");
     // sema_up(&(thread_current()->wakeup_sema));
   }
+  printf("end wakeup\n");
 }
 
 /*
@@ -762,6 +777,7 @@ thread_wake_up(){
 */
 static void 
 thread_aging(){
+  printf("start aging\n");
   struct list_elem *e;
 
   for(e=list_begin(&ready_list); e!= list_end(&ready_list); e= list_next(e)){
@@ -770,10 +786,11 @@ thread_aging(){
       t->priority += 1;
     }
   }
+  printf("end aging\n");
 
-  if(thread_current()->priority < list_entry(list_begin(&ready_list), struct thread, elem)->priority){
-    thread_yield();
-  }
+  // if(thread_current()->priority < list_entry(list_begin(&ready_list), struct thread, elem)->priority){
+  //   thread_yield();
+  // }
 }
 
 /* Returns true if value A is more than value B, false

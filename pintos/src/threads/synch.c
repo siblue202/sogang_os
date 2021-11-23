@@ -70,16 +70,20 @@ sema_down (struct semaphore *sema)
     {
       list_push_back (&sema->waiters, &thread_current ()->elem);
       // jgh 
-      struct list_elem *max_priority = list_max(&sema->waiters, value_less, NULL);
-      if(thread_current()->priority > list_entry(max_priority, struct thread, elem)->priority){
-        struct list_elem *e;
-        for(e =  list_begin(&sema->waiters); e!= list_end(&sema->waiters); e=list_next(e)){
-          list_entry(e, struct thread, elem)->priority = thread_current()->priority;
-        }
+      // struct list_elem *max_priority = list_max(&sema->waiters, value_less, NULL);
+      // if(thread_current()->priority > list_entry(max_priority, struct thread, elem)->priority){
+      //   struct list_elem *e;
+      //   for(e =  list_begin(&sema->waiters); e!= list_end(&sema->waiters); e=list_next(e)){
+      //     list_entry(e, struct thread, elem)->priority = thread_current()->priority;
+      //   }
+      // }
+      if(sema->upper->priority < thread_current()->priority){
+        sema->upper->priority = thread_current()->priority;
       }
       // jgh_end
       thread_block ();
     }
+  sema->upper = thread_current();
   sema->value--;
   intr_set_level (old_level);
 }
