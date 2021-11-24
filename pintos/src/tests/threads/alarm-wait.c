@@ -79,6 +79,7 @@ test_sleep (int thread_cnt, int iterations)
 
   /* Start threads. */
   ASSERT (output != NULL);
+  printf("start threads in testcase\n");// debug
   for (i = 0; i < thread_cnt; i++)
     {
       struct sleep_thread *t = threads + i;
@@ -92,12 +93,15 @@ test_sleep (int thread_cnt, int iterations)
       snprintf (name, sizeof name, "thread %d", i);
       thread_create (name, PRI_DEFAULT, sleeper, t);
     }
-  
+  printf("end session of start threads in testcase\n");// debug
   /* Wait long enough for all the threads to finish. */
+  printf("start timer_sleep in testcase\n"); // debug
   timer_sleep (100 + thread_cnt * iterations * 10 + 100);
+  printf("end timer_sleep in testcase \n");// debug
 
   /* Acquire the output lock in case some rogue thread is still
      running. */
+  printf("lock_acquie in testcase\n"); // debug
   lock_acquire (&test.output_lock);
 
   /* Print completion order. */
@@ -121,7 +125,7 @@ test_sleep (int thread_cnt, int iterations)
         fail ("thread %d woke up out of order (%d > %d)!",
               t->id, product, new_prod);
     }
-
+  
   /* Verify that we had the proper number of wakeups. */
   for (i = 0; i < thread_cnt; i++)
     if (threads[i].iterations != iterations)
@@ -129,6 +133,7 @@ test_sleep (int thread_cnt, int iterations)
             i, threads[i].iterations, iterations);
   
   lock_release (&test.output_lock);
+  printf("lock_release in testcase \n"); // debug
   free (output);
   free (threads);
 }

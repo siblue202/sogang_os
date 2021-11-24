@@ -60,6 +60,7 @@ sema_init (struct semaphore *sema, unsigned value)
 void
 sema_down (struct semaphore *sema) 
 {
+  // printf("start sema_down()\n"); // debug
   enum intr_level old_level;
 
   ASSERT (sema != NULL);
@@ -76,16 +77,18 @@ sema_down (struct semaphore *sema)
       //   for(e =  list_begin(&sema->waiters); e!= list_end(&sema->waiters); e=list_next(e)){
       //     list_entry(e, struct thread, elem)->priority = thread_current()->priority;
       //   }
-      // }
+      // // }
+
       if(sema->upper->priority < thread_current()->priority){
         sema->upper->priority = thread_current()->priority;
       }
       // jgh_end
       thread_block ();
     }
-  sema->upper = thread_current();
+  sema->upper = thread_current(); // jgh 
   sema->value--;
   intr_set_level (old_level);
+  // printf("end sema_down()\n"); // debug
 }
 
 /* Down or "P" operation on a semaphore, but only if the
@@ -121,6 +124,7 @@ sema_try_down (struct semaphore *sema)
 void
 sema_up (struct semaphore *sema) 
 {
+  // printf("start sema_up()\n"); // debug
   enum intr_level old_level;
 
   ASSERT (sema != NULL);
@@ -131,6 +135,7 @@ sema_up (struct semaphore *sema)
                                 struct thread, elem));
   sema->value++;
   intr_set_level (old_level);
+  // printf("end sema_up()\n"); // debug
 }
 
 static void sema_test_helper (void *sema_);

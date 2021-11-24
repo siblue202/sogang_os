@@ -9,6 +9,7 @@ struct semaphore
   {
     unsigned value;             /* Current value. */
     struct list waiters;        /* List of waiting threads. */
+    // jgh 
     struct thread *upper;     /* upper will sema_up() for proj3(threads) */
   };
 

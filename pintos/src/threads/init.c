@@ -99,12 +99,14 @@ main (void)
   malloc_init ();
   paging_init ();
 
+  // printf("start segmentaion in init.c\n"); //debug
   /* Segmentation. */
 #ifdef USERPROG
   tss_init ();
   gdt_init ();
 #endif
 
+  // printf("Initialize interrupt handlers. in init.c\n"); // debug
   /* Initialize interrupt handlers. */
   intr_init ();
   timer_init ();
@@ -115,11 +117,13 @@ main (void)
   syscall_init ();
 #endif
 
+  // printf("Start thread scheduler and enable interrupts. in init.c\n");
   /* Start thread scheduler and enable interrupts. */
   thread_start ();
   serial_init_queue ();
   timer_calibrate ();
 
+  // printf("Initialize file system. in init.c\n");
 #ifdef FILESYS
   /* Initialize file system. */
   ide_init ();
@@ -136,7 +140,7 @@ main (void)
   shutdown ();
   thread_exit (); //-> () -> (0)
 }
-
+
 /* Clear the "BSS", a segment that should be initialized to
    zeros.  It isn't actually stored on disk or zeroed by the
    kernel loader, so we have to zero it ourselves.

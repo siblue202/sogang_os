@@ -145,14 +145,19 @@ thread_start (void)
 {
   /* Create the idle thread. */
   struct semaphore idle_started;
+  printf("sema_init() in thread_start()\n"); // debug 
   sema_init (&idle_started, 0);
+  printf("thread_create() in thread_start()\n"); // debug
   thread_create ("idle", PRI_MIN, idle, &idle_started);
 
   /* Start preemptive thread scheduling. */
+  printf("intr_enable() in thread_start()\n"); // debug 
   intr_enable ();
 
   /* Wait for the idle thread to initialize idle_thread. */
+  printf("sema_down() in thread_start() \n"); // debug
   sema_down (&idle_started);
+  printf("fuck off? \n"); // debug 
 }
 
 /* Called by the timer interrupt handler at each timer tick.
@@ -160,6 +165,7 @@ thread_start (void)
 void
 thread_tick (void) 
 {
+  printf("start thread_tick()\n"); // debug
   struct thread *t = thread_current ();
 
   /* Update statistics. */
@@ -178,13 +184,16 @@ thread_tick (void)
 
   #ifndef USERPROG
   /* Project #3. */
+  printf("called thread_wake_up() by thread_tick()\n"); // debug
   thread_wake_up ();
   // sema_down(&t->sleeping_sema);
 
   // /* Project #3. */
   if (thread_prior_aging == true)
+    printf("called thread_aging() by thread_tick()\n"); // debug
     thread_aging();
   #endif
+  printf("end thread_tick()\n"); // debug
 }
 
 /* Prints thread statistics. */
@@ -290,17 +299,22 @@ thread_create (const char *name, int priority,
 void
 thread_block (void) 
 {
-  printf("start thread_block()\n");
+  printf("start thread_block()\n"); // debug
   ASSERT (!intr_context ());
   ASSERT (intr_get_level () == INTR_OFF);
 
-  printf("thread_status : %d \n", running_thread()->status);
+  printf("current thread status finding \n"); // debug 
+  struct thread *t = thread_current();
+  int status = t->status;
+  printf("thread_status : %d \n", status); // debug
 
+  printf("thread_current ()->status = THREAD_BLOCKED; in thread_block()\n"); // debug 
   thread_current ()->status = THREAD_BLOCKED;
   //jgh
+  printf("list_sort in thread_block()\n"); // debug 
   list_sort(&ready_list, value_more, NULL);
   //jgh_end
-  printf("end thread_block() before schedule()\n");
+  printf("end thread_block() before schedule()\n"); // debug
   schedule ();
 }
 
@@ -315,7 +329,7 @@ thread_block (void)
 void
 thread_unblock (struct thread *t) 
 {
-  printf("start thread_unblock()\n");
+  printf("start thread_unblock()\n"); // debug
   enum intr_level old_level;
 
   ASSERT (is_thread (t));
@@ -330,10 +344,10 @@ thread_unblock (struct thread *t)
   intr_set_level (old_level);
   //jgh 
   if(thread_current()->priority < list_entry(list_begin(&ready_list), struct thread, elem)->priority){
-    printf("end thread_unblock before thread_yield()\n");
+    printf("end thread_unblock before thread_yield()\n"); // debug
     thread_yield();
   }
-  printf("end thread_unblock\n");
+  printf("end thread_unblock\n"); // debug
 }
 
 /* Returns the name of the running thread. */
@@ -357,7 +371,7 @@ thread_current (void)
      of stack, so a few big automatic arrays or moderate
      recursion can cause stack overflow. */
   ASSERT (is_thread (t));
-  ASSERT (t->status == THREAD_RUNNING);
+  // ASSERT (t->status == THREAD_RUNNING); // <- 혹시 몰라서 comment 처리. debug (해결되면 꼭 주석해제할 것 )
 
   return t;
 }
@@ -374,7 +388,7 @@ thread_tid (void)
 void
 thread_exit (void) //-> () -> (int status)
 {
-  printf("start thread_exit()\n");
+  printf("start thread_exit()\n"); // debug
   ASSERT (!intr_context ()); 
 
   // //JGH move to process.c
@@ -399,7 +413,7 @@ thread_exit (void) //-> () -> (int status)
   //jgh
   list_sort(&ready_list, value_more, NULL);
   //jgh_end
-  printf("end thread_exit() (before schedule())\n");
+  printf("end thread_exit() (before schedule())\n"); // debug
   schedule ();
   NOT_REACHED ();
 }
@@ -409,7 +423,7 @@ thread_exit (void) //-> () -> (int status)
 void
 thread_yield (void) 
 {
-  printf("start thread_yield\n");
+  printf("start thread_yield\n"); // debug
   struct thread *cur = thread_current ();
   enum intr_level old_level;
   
@@ -423,7 +437,7 @@ thread_yield (void)
   //jgh
   list_sort(&ready_list, value_more, NULL);
   //jgh_end
-  printf("end thread_yield(before schedule())\n");
+  printf("end thread_yield(before schedule())\n"); // debug
   schedule ();
   intr_set_level (old_level);
 }
@@ -502,14 +516,17 @@ thread_get_recent_cpu (void)
 static void
 idle (void *idle_started_ UNUSED) 
 {
+  printf("idle thread start point\n"); // debug
   struct semaphore *idle_started = idle_started_;
   idle_thread = thread_current ();
+  printf("sema_up in idle()\n"); // debug
   sema_up (idle_started);
 
   for (;;) 
     {
       /* Let someone else run. */
       intr_disable ();
+      printf("thread_block() in idle()\n"); // debug 
       thread_block ();
 
       /* Re-enable interrupts and wait for the next one.
@@ -721,7 +738,7 @@ uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 
 void 
 thread_sleeping(int64_t ticks){
-  printf("start sleeping \n");
+  printf("start sleeping \n"); // debug
   struct thread *c = thread_current();
   enum intr_level old_level;
 
@@ -733,7 +750,7 @@ thread_sleeping(int64_t ticks){
     thread_block();
   }
   intr_set_level (old_level);
-  printf("end sleeping\n");
+  printf("end sleeping\n"); // debug
   
   // printf("end thread_sleeping\n");
   // sema_up(&(c->sleeping_sema));
@@ -750,7 +767,7 @@ if time when thread was slept < 100
 void 
 thread_wake_up(){
   // printf("... start point thread_wakeup()\n");
-  printf("start wake up\n");
+  printf("start wake up\n"); // debug
   if(! list_empty(&sleeping_list)){
     struct list_elem *e;
     int64_t start = timer_ticks ();
@@ -768,7 +785,7 @@ thread_wake_up(){
     // printf("... end point thread_wakeup()\n");
     // sema_up(&(thread_current()->wakeup_sema));
   }
-  printf("end wakeup\n");
+  printf("end wakeup\n"); // debug
 }
 
 /*
@@ -777,7 +794,7 @@ thread_wake_up(){
 */
 static void 
 thread_aging(){
-  printf("start aging\n");
+  printf("start aging\n"); // debug
   struct list_elem *e;
 
   for(e=list_begin(&ready_list); e!= list_end(&ready_list); e= list_next(e)){
@@ -786,7 +803,7 @@ thread_aging(){
       t->priority += 1;
     }
   }
-  printf("end aging\n");
+  printf("end aging\n"); // debug
 
   // if(thread_current()->priority < list_entry(list_begin(&ready_list), struct thread, elem)->priority){
   //   thread_yield();
