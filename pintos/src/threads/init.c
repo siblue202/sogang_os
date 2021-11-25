@@ -117,13 +117,13 @@ main (void)
   syscall_init ();
 #endif
 
-  // printf("Start thread scheduler and enable interrupts. in init.c\n");
+  // printf("Start thread scheduler and enable interrupts. in init.c\n"); // dubug
   /* Start thread scheduler and enable interrupts. */
   thread_start ();
   serial_init_queue ();
   timer_calibrate ();
 
-  // printf("Initialize file system. in init.c\n");
+  // printf("Initialize file system. in init.c\n"); // debug
 #ifdef FILESYS
   /* Initialize file system. */
   ide_init ();
