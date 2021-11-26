@@ -172,5 +172,6 @@ void thread_sleeping(int64_t ticks);
 void thread_wake_up(void);
 bool value_more(const struct list_elem *a_, const struct list_elem *b_,
             void *aux UNUSED);
+void thread_check_preemption(void);
 
 #endif /* threads/thread.h */

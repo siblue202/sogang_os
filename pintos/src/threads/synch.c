@@ -31,6 +31,7 @@
 #include <string.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include <debug.h>
 
 /* Initializes semaphore SEMA to VALUE.  A semaphore is a
    nonnegative integer along with two atomic operators for
@@ -68,7 +69,11 @@ sema_down (struct semaphore *sema)
   old_level = intr_disable ();
   while (sema->value == 0) 
     {
-      list_push_back (&sema->waiters, &thread_current ()->elem);
+      // jgh 
+      // 우선순위대로 list_insert_ordered()
+      // list_push_back (&sema->waiters, &thread_current ()->elem);
+      list_insert_ordered(&sema->waiters, &thread_current()->elem, value_more, NULL);
+      // jgh_end
       thread_block ();
     }
   sema->value--;
@@ -113,10 +118,22 @@ sema_up (struct semaphore *sema)
   ASSERT (sema != NULL);
 
   old_level = intr_disable ();
-  if (!list_empty (&sema->waiters)) 
+  // jgh 
+  // block 중 priority가 변경되었을 가능성이 있으므로 list_sort() 필요 
+
+  struct thread *first_waiter_thread; // +
+  if (!list_empty (&sema->waiters)) {
+    list_sort(&sema->waiters, value_more, NULL); // +
+    first_waiter_thread = list_entry(list_begin(&sema->waiters), struct thread, elem); // +
     thread_unblock (list_entry (list_pop_front (&sema->waiters),
                                 struct thread, elem));
+  }
   sema->value++;
+
+  // jgh 
+  thread_check_preemption();
+  // jgh_end
+
   intr_set_level (old_level);
 }
 
@@ -295,7 +312,9 @@ cond_wait (struct condition *cond, struct lock *lock)
   ASSERT (lock_held_by_current_thread (lock));
   
   sema_init (&waiter.semaphore, 0);
-  list_push_back (&cond->waiters, &waiter.elem);
+  // 우선순위대로 insert 
+  // list_push_back (&cond->waiters, &waiter.elem);
+  list_insert_ordered(&cond->waiters, &waiter.elem, value_more_cond, NULL);
   lock_release (lock);
   sema_down (&waiter.semaphore);
   lock_acquire (lock);
@@ -316,9 +335,12 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
   ASSERT (!intr_context ());
   ASSERT (lock_held_by_current_thread (lock));
 
-  if (!list_empty (&cond->waiters)) 
+  if (!list_empty (&cond->waiters)) {
+    // cond->waiters 리스트 우선순위 정렬 
+    list_sort(&cond->waiters, value_more_cond, NULL);
     sema_up (&list_entry (list_pop_front (&cond->waiters),
                           struct semaphore_elem, elem)->semaphore);
+  }
 }
 
 /* Wakes up all threads, if any, waiting on COND (protected by
@@ -335,4 +357,19 @@ cond_broadcast (struct condition *cond, struct lock *lock)
 
   while (!list_empty (&cond->waiters))
     cond_signal (cond, lock);
+}
+
+/* Returns true if value A is more than value B, false
+   otherwise. */
+bool
+value_more_cond (const struct list_elem *a_, const struct list_elem *b_,
+            void *aux UNUSED) 
+{
+  struct semaphore_elem *a = list_entry (a_, struct semaphore_elem, elem);
+  struct semaphore_elem *b = list_entry (b_, struct semaphore_elem, elem);
+  
+  struct thread *a_thread = list_entry(list_begin(&a->semaphore.waiters), struct thread, elem);
+  struct thread *b_thread = list_entry(list_begin(&b->semaphore.waiters), struct thread, elem);
+
+  return a_thread->priority > b_thread->priority;
 }

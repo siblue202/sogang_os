@@ -317,7 +317,7 @@ thread_unblock (struct thread *t)
   ASSERT (t->status == THREAD_BLOCKED);
   // JGH
   // list_push_back (&ready_list, &t->elem);
-  list_insert_ordered(&ready_list, t->elem, value_more, NULL);
+  list_insert_ordered(&ready_list, &t->elem, value_more, NULL);
   // JGH_END 
   t->status = THREAD_READY;
   intr_set_level (old_level);
@@ -769,4 +769,14 @@ value_more (const struct list_elem *a_, const struct list_elem *b_,
   const struct thread *b = list_entry (b_, struct thread, elem);
   
   return a->priority > b->priority;
+}
+
+void 
+thread_check_preemption(void)
+{ 
+  struct thread *first_ready_thread = list_entry(list_begin(&ready_list), struct thread, elem);
+
+  if(first_ready_thread->priority > thread_get_priority()){
+    thread_yield();
+  }
 }
