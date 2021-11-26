@@ -123,7 +123,7 @@ main (void)
   serial_init_queue ();
   timer_calibrate ();
 
-  // printf("Initialize file system. in init.c\n"); // debug
+  printf("Initialize file system. in init.c\n"); // debug
 #ifdef FILESYS
   /* Initialize file system. */
   ide_init ();

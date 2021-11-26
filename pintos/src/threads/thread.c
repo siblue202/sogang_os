@@ -311,7 +311,7 @@ thread_block (void)
   printf("thread_current ()->status = THREAD_BLOCKED; in thread_block(), thread_name : %s\n", thread_current()->name); // debug
   thread_current ()->status = THREAD_BLOCKED;
   //jgh
-  if(strcmp(thread_current()->name, 'main')!= 0 || strcmp(thread_current()->name, 'idle') != 0){
+  if(strcmp(thread_current()->name, 'main')!= 0 && strcmp(thread_current()->name, 'idle') != 0){
     printf("list_sort in thread_block(), thread_name : %s\n", thread_current()->name); // debug
     if(! list_empty(&ready_list)){
       list_sort(&ready_list, value_more, NULL);
@@ -342,7 +342,7 @@ thread_unblock (struct thread *t)
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
 
-  if(strcmp(thread_current()->name, 'main')!= 0 || strcmp(thread_current()->name, 'idle') != 0){
+  if(strcmp(thread_current()->name, 'main')!= 0 && strcmp(thread_current()->name, 'idle') != 0){
     list_insert_ordered(&ready_list, &t->elem, value_more, NULL);
   } else{
     list_push_back (&ready_list, &t->elem);
@@ -353,7 +353,7 @@ thread_unblock (struct thread *t)
 
   intr_set_level (old_level);
   //jgh 
-  if(strcmp(thread_current()->name, 'main')!= 0 || strcmp(thread_current()->name, 'idle') != 0){
+  if(strcmp(thread_current()->name, 'main')!= 0 && strcmp(thread_current()->name, 'idle') != 0){
     if(thread_current()->priority < list_entry(list_begin(&ready_list), struct thread, elem)->priority){
       printf("end thread_unblock before thread_yield(), thread_name : %s\n", thread_current()->name); // debug
       thread_yield();
@@ -424,7 +424,7 @@ thread_exit (void) //-> () -> (int status)
   list_remove (&thread_current()->allelem);
   thread_current ()->status = THREAD_DYING;
   //jgh
-  if(strcmp(thread_current()->name, 'main')!= 0 || strcmp(thread_current()->name, 'idle') != 0){
+  if(strcmp(thread_current()->name, 'main')!= 0 && strcmp(thread_current()->name, 'idle') != 0){
     if(! list_empty(&ready_list)){
       list_sort(&ready_list, value_more, NULL);
     }
@@ -448,7 +448,7 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
-    if(strcmp(thread_current()->name, 'main')!= 0 || strcmp(thread_current()->name, 'idle') != 0){
+    if(strcmp(thread_current()->name, 'main')!= 0 && strcmp(thread_current()->name, 'idle') != 0){
       list_insert_ordered(&ready_list, &cur->elem, value_more, NULL);
     } else{
       list_push_back (&ready_list, &cur->elem);
@@ -456,7 +456,7 @@ thread_yield (void)
     
   cur->status = THREAD_READY;
   //jgh
-  if(strcmp(thread_current()->name, 'main')!= 0 || strcmp(thread_current()->name, 'idle') != 0){
+  if(strcmp(thread_current()->name, 'main')!= 0 && strcmp(thread_current()->name, 'idle') != 0){
     if(! list_empty(&ready_list)){
       list_sort(&ready_list, value_more, NULL);
     }

@@ -79,9 +79,9 @@ sema_down (struct semaphore *sema)
       //   }
       // // }
 
-      if(sema->upper->priority < thread_current()->priority){
-        sema->upper->priority = thread_current()->priority;
-      }
+      // if(sema->upper->priority < thread_current()->priority){
+      //   sema->upper->priority = thread_current()->priority;
+      // }
       // jgh_end
       thread_block ();
     }
