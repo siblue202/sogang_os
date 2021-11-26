@@ -272,7 +272,12 @@ thread_create (const char *name, int priority,
   thread_unblock (t);
 
   // JGH
-  // thread_current()->child = t;
+  /* 생성된 thread 우선순위와 실행중인 thread의 우선순위 비교 후 생성된 thread의 우선순위가 높으면 thread_yield()*/
+  if(!list_empty(&ready_list)){
+    if(t->priority > thread_get_priority()){
+     thread_yield();
+    }
+  }
 
   return tid;
 }
@@ -310,7 +315,10 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
+  // JGH
+  // list_push_back (&ready_list, &t->elem);
+  list_insert_ordered(&ready_list, t->elem, value_more, NULL);
+  // JGH_END 
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -389,8 +397,10 @@ thread_yield (void)
   ASSERT (!intr_context ());
 
   old_level = intr_disable ();
-  if (cur != idle_thread) 
-    list_push_back (&ready_list, &cur->elem);
+  if (cur != idle_thread) {
+    // list_push_back (&ready_list, &cur->elem);
+    list_insert_ordered(&ready_list, &cur->elem, value_more, NULL);
+  }
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -418,6 +428,16 @@ void
 thread_set_priority (int new_priority) 
 {
   thread_current ()->priority = new_priority;
+  // JGH 
+  // 우선순위 변경 시 우선순위에 따라 선점이 발생하도록 설정 
+  struct thread *first_ready_thread = list_entry(list_begin(&ready_list), struct thread, elem);
+  if(!list_empty(&ready_list)){
+    if(thread_current()->priority < first_ready_thread->priority){
+      thread_yield();
+    }
+  }
+   
+  // JGH_END
 }
 
 /* Returns the current thread's priority. */
@@ -737,4 +757,16 @@ thread_wake_up(){
     // printf("... end point thread_wakeup()\n");
     // sema_up(&(thread_current()->wakeup_sema));
   }
+}
+
+/* Returns true if value A is more than value B, false
+   otherwise. */
+bool
+value_more (const struct list_elem *a_, const struct list_elem *b_,
+            void *aux UNUSED) 
+{
+  const struct thread *a = list_entry (a_, struct thread, elem);
+  const struct thread *b = list_entry (b_, struct thread, elem);
+  
+  return a->priority > b->priority;
 }

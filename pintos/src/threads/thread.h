@@ -170,5 +170,7 @@ int thread_get_load_avg (void);
 // struct thread * thread_find(tid_t tid);
 void thread_sleeping(int64_t ticks);
 void thread_wake_up(void);
+bool value_more(const struct list_elem *a_, const struct list_elem *b_,
+            void *aux UNUSED);
 
 #endif /* threads/thread.h */
