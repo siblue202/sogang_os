@@ -694,7 +694,7 @@ thread_sleeping(int64_t ticks){
   old_level = intr_disable ();
 
   if(c != idle_thread){
-    c->sleep_time = ticks;
+    c->wakeup_time = ticks;
     list_push_back(&sleeping_list, &c->elem);
     thread_block();
   }
@@ -723,9 +723,10 @@ thread_wake_up(){
     for(e = list_begin(&sleeping_list); e!= list_end(&sleeping_list); e=list_next(e)){
       struct thread *c = list_entry(e, struct thread, elem);
 
-      if (start >= c->sleep_time && c->sleep_time != 0){
-        list_remove(e);
-        c->sleep_time = 0;
+      if (start >= c->wakeup_time){
+        e= list_remove(e);
+        e= list_prev(e);
+        c->wakeup_time = 0;
         thread_unblock(c);
       // thread_yield();
       }
