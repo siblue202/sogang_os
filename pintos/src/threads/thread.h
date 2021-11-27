@@ -117,6 +117,13 @@ struct thread
     // for alarm clock
     int64_t wakeup_time;
 
+    // jgh 
+    int init_priority;                 // 초기 priority
+    struct lock *lock_wait;             // 해당 lock이 release하길 기다리는 중. 
+    struct list lock_waiter;           // lock들을 기다리는 waiter_thread들 
+    struct list_elem lock_waiter_elem; // lock_waiter list를 위한 elem 
+
+
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 

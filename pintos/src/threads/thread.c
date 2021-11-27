@@ -123,6 +123,8 @@ thread_init (void)
   sema_init(&(initial_thread->wakeup_sema), 0);
   // sema_init(&(initial_thread->exec_sema), 0);
   list_init(&(initial_thread->child));
+  list_init(&(initial_thread->lock_waiter));      // for proj3
+  initial_thread->init_priority = initial_thread->priority; // for proj 3 초기 priority 저장 
 
   //JGH 
   for(int i =0; i<128; i++){
@@ -247,6 +249,8 @@ thread_create (const char *name, int priority,
   list_init(&(t->child));
   list_push_back(&(thread_current()->child), &(t->child_elem));
   // printf("init complete\n");
+  list_init(&(t->lock_waiter));     // for proj3
+  t->init_priority = t->priority;   // for proj3 init_priority 초기화 
 
   for(int i=0; i<128; i++){
     t->fd[i] = NULL;
@@ -776,7 +780,7 @@ thread_check_preemption(void)
 { 
   struct thread *first_ready_thread = list_entry(list_begin(&ready_list), struct thread, elem);
 
-  if(first_ready_thread->priority > thread_get_priority()){
+  if(first_ready_thread->priority >= thread_get_priority()){
     thread_yield();
   }
 }

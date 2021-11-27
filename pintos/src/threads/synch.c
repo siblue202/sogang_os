@@ -213,7 +213,35 @@ lock_acquire (struct lock *lock)
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
+  // jgh for proj 3 
+  if(lock->holder != NULL){
+    thread_current()->lock_wait = lock;               // thread_current가 wait해아 하는 lock pointer저장 
+    list_push_back(&lock->holder->lock_waiter, &thread_current()->lock_waiter_elem);  // holder의 lock_waiter에 thread_current 등록
+    
+    // holder's lock_waiter에서 가장 priority가 큰 값 찾기 
+    struct list_elem *max_elem = list_max(&lock->holder->lock_waiter, value_more, NULL);
+    struct thread *max_p_thread = list_entry(max_elem, struct thread, elem);
+    
+    // nested priority(depth = 8). max_p_thread->priority를 lock과 연결된 모든 thread에 donation. 
+    struct thread *holder_of_holder = lock->holder;
+    int count = 1; 
+    while(count >= 8){
+      if(holder_of_holder->lock_wait != NULL){
+        count += 1;
+        struct list_elem *e;
+        for(e= list_begin(&holder_of_holder->lock_waiter); e!= list_end(&holder_of_holder->lock_waiter); e= list_next(e)){
+          list_entry(e, struct thread, elem)-> priority = max_p_thread->priority;
+        }
+        holder_of_holder = holder_of_holder->lock_wait->holder;
+      } else {
+        break;
+      }
+    }
+  }
+  // jgh_end 
+
   sema_down (&lock->semaphore);
+  thread_current()->lock_wait = NULL;                 // null로 초기화
   lock->holder = thread_current ();
 }
 
@@ -249,6 +277,19 @@ lock_release (struct lock *lock)
   ASSERT (lock_held_by_current_thread (lock));
 
   lock->holder = NULL;
+  
+  // jgh for proj3 
+  // lock_waiter에서 모든 엔트리 삭제 
+  struct list_elem *e;
+  for(e= list_begin(&thread_current()->lock_waiter); e!= list_end(&thread_current()->lock_waiter_elem); e=list_remove(e)){
+    continue;
+  }
+
+  // init_priority로 재설정 
+
+  // lock_waiter에서 다시 높은 priority가 있을 경우 해당 priority로 설정 
+  
+
   sema_up (&lock->semaphore);
 }
 
