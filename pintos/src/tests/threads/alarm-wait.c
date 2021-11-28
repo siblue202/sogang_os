@@ -92,7 +92,6 @@ test_sleep (int thread_cnt, int iterations)
       snprintf (name, sizeof name, "thread %d", i);
       thread_create (name, PRI_DEFAULT, sleeper, t);
     }
-  
   /* Wait long enough for all the threads to finish. */
   timer_sleep (100 + thread_cnt * iterations * 10 + 100);
 
@@ -121,7 +120,7 @@ test_sleep (int thread_cnt, int iterations)
         fail ("thread %d woke up out of order (%d > %d)!",
               t->id, product, new_prod);
     }
-
+  
   /* Verify that we had the proper number of wakeups. */
   for (i = 0; i < thread_cnt; i++)
     if (threads[i].iterations != iterations)
