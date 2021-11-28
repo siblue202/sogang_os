@@ -125,6 +125,7 @@ thread_init (void)
   list_init(&(initial_thread->child));
   list_init(&(initial_thread->lock_waiter));      // for proj3
   initial_thread->init_priority = initial_thread->priority; // for proj 3 초기 priority 저장 
+  initial_thread->lock_wait = NULL;               // for proj3
 
   //JGH 
   for(int i =0; i<128; i++){
@@ -251,6 +252,7 @@ thread_create (const char *name, int priority,
   // printf("init complete\n");
   list_init(&(t->lock_waiter));     // for proj3
   t->init_priority = t->priority;   // for proj3 init_priority 초기화 
+  t->lock_wait = NULL;              // for proj3
 
   for(int i=0; i<128; i++){
     t->fd[i] = NULL;
@@ -775,6 +777,18 @@ value_more (const struct list_elem *a_, const struct list_elem *b_,
   return a->priority > b->priority;
 }
 
+/* Returns true if value A is less than value B, false
+   otherwise. */
+bool
+value_less (const struct list_elem *a_, const struct list_elem *b_,
+            void *aux UNUSED) 
+{
+  const struct thread *a = list_entry (a_, struct thread, elem);
+  const struct thread *b = list_entry (b_, struct thread, elem);
+  
+  return a->priority < b->priority;
+}
+
 void 
 thread_check_preemption(void)
 { 
@@ -783,4 +797,61 @@ thread_check_preemption(void)
   if(first_ready_thread->priority >= thread_get_priority()){
     thread_yield();
   }
+}
+
+void
+thread_lock_acquire(struct lock *lock){
+  if(lock->holder != NULL){
+    thread_current()->lock_wait = lock;               // thread_current가 wait해아 하는 lock pointer저장 
+    list_push_back(&lock->holder->lock_waiter, &thread_current()->lock_waiter_elem);  // holder의 lock_waiter에 thread_current 등록
+    
+    // holder's lock_waiter에서 가장 priority가 큰 값 찾기 
+    struct thread *max_p_thread;
+    if(! list_empty(&lock->holder->lock_waiter)){
+      struct list_elem *max_elem = list_max(&lock->holder->lock_waiter, value_less, NULL);
+      max_p_thread = list_entry(max_elem, struct thread, elem);
+    }
+    
+    // nested priority(depth = 8). max_p_thread->priority를 lock과 연결된 모든 thread에 donation. 
+    struct thread *holder_of_holder = lock->holder;
+    int count = 0; 
+    while(count < 8){
+      if(holder_of_holder->lock_wait != NULL){
+        count += 1;
+        holder_of_holder->priority = max_p_thread->priority; // holder의 priority 증가 
+        list_insert(&holder_of_holder->lock_waiter, &thread_current()->lock_waiter_elem);
+        // struct list_elem *e;
+        // for(e= list_begin(&holder_of_holder->lock_waiter); e!= list_end(&holder_of_holder->lock_waiter); e= list_next(e)){
+        //   list_entry(e, struct thread, elem)-> priority = max_p_thread->priority; // holder의 waiter들의 prioriry 증가 
+        // }
+        holder_of_holder = holder_of_holder->lock_wait->holder;
+      } else {
+        break;
+      }
+    }
+  }
+}
+
+void 
+thread_lock_release(struct lock *lock){
+// lock_waiter에서 release할 lock을 lock_wait으로 가진 thread 엔트리 삭제 
+  struct list_elem *e;
+  if(! list_empty(&thread_current()->lock_waiter)){
+    for(e= list_begin(&thread_current()->lock_waiter); e!= list_end(&thread_current()->lock_waiter_elem); e=list_next(e)){
+      if(list_entry(e, struct thread, elem)->lock_wait == lock){
+        e= list_remove(e);
+        e= list_prev(e);
+      }
+    }
+  }
+  
+  // init_priority로 재설정
+  thread_current()->priority = thread_current()->init_priority;
+
+  // lock_waiter에서 다시 높은 priority가 있을 경우 해당 priority로 설정 
+  if(! list_empty(&thread_current()->lock_waiter)){
+    if(thread_current()->priority < list_entry(list_max(&thread_current()->lock_waiter, value_less, NULL), struct thread, elem)->priority)
+    thread_current()->priority = list_entry(list_max(&thread_current()->lock_waiter, value_less, NULL), struct thread, elem)->priority;
+  }
+  // jgh_end
 }
