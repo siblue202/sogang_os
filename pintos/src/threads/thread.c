@@ -251,7 +251,7 @@ thread_create (const char *name, int priority,
   list_push_back(&(thread_current()->child), &(t->child_elem));
   // printf("init complete\n");
   list_init(&(t->lock_waiter));     // for proj3
-  t->init_priority = t->priority;   // for proj3 init_priority 초기화 
+  t->init_priority = priority;   // for proj3 init_priority 초기화 
   t->lock_wait = NULL;              // for proj3
 
   for(int i=0; i<128; i++){
@@ -369,6 +369,18 @@ thread_exit (void) //-> () -> (int status)
 {
   ASSERT (!intr_context ()); 
 
+  // debug
+  // if(! list_empty(&ready_list)){
+  //   struct list_elem *e;
+  //   for(e= list_begin(&ready_list); e != list_end(&ready_list); e= list_next(e)){
+  //     printf("ready_list in %s\n", list_entry(e, struct thread, elem)->name);
+  //     printf("%s status is %d\n", list_entry(e, struct thread, elem)->name, list_entry(e, struct thread, elem)->status);
+  //     printf("next_thread_to_run is %s\n", next_thread_to_run()->name);
+  //     printf("%s 's priority is %d\n", list_entry(e, struct thread, elem)->name, list_entry(e, struct thread, elem)->priority);
+  //   }
+  // }
+  // debug_end 
+
   // //JGH move to process.c
   // for(int i=0; i<128; i++){
   //   if(thread_current()->fd[i] != NULL){
@@ -435,13 +447,20 @@ thread_set_priority (int new_priority)
 {
   thread_current ()->priority = new_priority;
   // JGH 
+
+  // new
+  // init_priority로 재설정
+  // thread_current()->priority = thread_current()->init_priority;
+
+  // // lock_waiter에서 다시 높은 priority가 있을 경우 해당 priority로 설정 없으면  init_priority로 설정 
+  // if(! list_empty(&thread_current()->lock_waiter)){
+  //   if(thread_get_priority() < list_entry(list_max(&thread_current()->lock_waiter, value_less, NULL), struct thread, elem)->priority){
+  //     thread_current()->priority = list_entry(list_max(&thread_current()->lock_waiter, value_less, NULL), struct thread, elem)->priority;
+  //   }
+  // }
+  // new end 
   // 우선순위 변경 시 우선순위에 따라 선점이 발생하도록 설정 
-  struct thread *first_ready_thread = list_entry(list_begin(&ready_list), struct thread, elem);
-  if(!list_empty(&ready_list)){
-    if(thread_current()->priority < first_ready_thread->priority){
-      thread_yield();
-    }
-  }
+  thread_check_preemption();
    
   // JGH_END
 }
@@ -757,9 +776,6 @@ thread_wake_up(){
       // thread_yield();
       }
     }
-
-
-    
     // printf("... end point thread_wakeup()\n");
     // sema_up(&(thread_current()->wakeup_sema));
   }
@@ -803,20 +819,32 @@ void
 thread_lock_acquire(struct lock *lock){
   if(lock->holder != NULL){
     thread_current()->lock_wait = lock;               // thread_current가 wait해아 하는 lock pointer저장 
-    list_push_back(&lock->holder->lock_waiter, &thread_current()->lock_waiter_elem);  // holder의 lock_waiter에 thread_current 등록
+    list_insert_ordered(&lock->holder->lock_waiter, &thread_current()->lock_waiter_elem, value_more, NULL);
+    // prev
+    // list_push_back(&lock->holder->lock_waiter, &thread_current()->lock_waiter_elem);  // holder의 lock_waiter에 thread_current 등록
     
     // holder's lock_waiter에서 가장 priority가 큰 값 찾기 
-    struct thread *max_p_thread;
+    // prev
+    // struct thread *max_p_thread = NULL;  
+    // if(! list_empty(&lock->holder->lock_waiter)){  
+    //   struct list_elem *max_elem = list_max(&lock->holder->lock_waiter, value_less, NULL);  
+    //   max_p_thread = list_entry(max_elem, struct thread, elem);  
+    // }
+    // new 
+    struct thread *max_p_thread = NULL;
     if(! list_empty(&lock->holder->lock_waiter)){
-      struct list_elem *max_elem = list_max(&lock->holder->lock_waiter, value_less, NULL);
-      max_p_thread = list_entry(max_elem, struct thread, elem);
+      if(list_entry(list_begin(&lock->holder->lock_waiter), struct thread, elem)->priority > thread_current()->priority){
+        max_p_thread = list_entry(list_begin(&lock->holder->lock_waiter), struct thread, elem);
+      } else {
+        max_p_thread = thread_current();
+      }
     }
-    
-    // nested priority(depth = 8). max_p_thread->priority를 lock과 연결된 모든 thread에 donation. 
+
+  // nested priority(depth = 8). max_p_thread->priority를 lock과 연결된 모든 thread에 donation. 
     struct thread *holder_of_holder = lock->holder;
     int count = 0; 
     while(count < 8){
-      if(holder_of_holder->lock_wait != NULL){
+      if(holder_of_holder->lock_wait != NULL && max_p_thread != NULL){
         count += 1;
         holder_of_holder->priority = max_p_thread->priority; // holder의 priority 증가 
         list_insert(&holder_of_holder->lock_waiter, &thread_current()->lock_waiter_elem);
@@ -826,18 +854,20 @@ thread_lock_acquire(struct lock *lock){
         // }
         holder_of_holder = holder_of_holder->lock_wait->holder;
       } else {
+        holder_of_holder->priority = max_p_thread->priority;
         break;
       }
     }
   }
 }
 
+
 void 
 thread_lock_release(struct lock *lock){
 // lock_waiter에서 release할 lock을 lock_wait으로 가진 thread 엔트리 삭제 
   struct list_elem *e;
   if(! list_empty(&thread_current()->lock_waiter)){
-    for(e= list_begin(&thread_current()->lock_waiter); e!= list_end(&thread_current()->lock_waiter_elem); e=list_next(e)){
+    for(e= list_begin(&thread_current()->lock_waiter); e!= list_end(&thread_current()->lock_waiter); e=list_next(e)){
       if(list_entry(e, struct thread, elem)->lock_wait == lock){
         e= list_remove(e);
         e= list_prev(e);
@@ -848,10 +878,11 @@ thread_lock_release(struct lock *lock){
   // init_priority로 재설정
   thread_current()->priority = thread_current()->init_priority;
 
-  // lock_waiter에서 다시 높은 priority가 있을 경우 해당 priority로 설정 
+  // lock_waiter에서 다시 높은 priority가 있을 경우 해당 priority로 설정 없으면  init_priority로 설정 
   if(! list_empty(&thread_current()->lock_waiter)){
-    if(thread_current()->priority < list_entry(list_max(&thread_current()->lock_waiter, value_less, NULL), struct thread, elem)->priority)
-    thread_current()->priority = list_entry(list_max(&thread_current()->lock_waiter, value_less, NULL), struct thread, elem)->priority;
+    if(thread_get_priority() < list_entry(list_max(&thread_current()->lock_waiter, value_less, NULL), struct thread, elem)->priority){
+      thread_current()->priority = list_entry(list_max(&thread_current()->lock_waiter, value_less, NULL), struct thread, elem)->priority;
+    }
   }
   // jgh_end
 }

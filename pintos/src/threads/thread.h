@@ -187,5 +187,11 @@ void thread_check_preemption(void);
 
 void thread_lock_acquire(struct lock *lock);
 void thread_lock_release(struct lock *lock);
+void thread_lock_refresh(void);
+void thread_lock_remove(struct lock *lock);
+bool value_more_waiter(const struct list_elem *a_, const struct list_elem *b_,
+            void *aux UNUSED);
+bool value_less_waiter(const struct list_elem *a_, const struct list_elem *b_,
+            void *aux UNUSED);
 
 #endif /* threads/thread.h */
