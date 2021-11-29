@@ -214,7 +214,14 @@ lock_acquire (struct lock *lock)
   ASSERT (!lock_held_by_current_thread (lock));
 
   // jgh for proj 3 
-  thread_lock_acquire(lock);
+  if(lock->holder){
+    thread_current()->lock_wait = lock;
+    list_insert_ordered(&lock->holder->lock_waiter, 
+                          &thread_current()->lock_waiter_elem,
+                          value_more_waiter, NULL);
+    
+    thread_lock_acquire();
+  }
 
   sema_down (&lock->semaphore);
   thread_current()->lock_wait = NULL;                 // null로 초기화
@@ -252,13 +259,13 @@ lock_release (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
 
-  lock->holder = NULL;
-  
   // jgh for proj3 
   // thread_lock_release(lock); // thread_lock_refresh(), thread_lock_remove() 로 나눔 
   thread_lock_remove(lock);
   thread_lock_refresh();
 
+  lock->holder = NULL;
+  
   sema_up (&lock->semaphore);
 }
 

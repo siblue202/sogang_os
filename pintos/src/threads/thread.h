@@ -185,7 +185,7 @@ bool value_less (const struct list_elem *a_, const struct list_elem *b_,
             
 void thread_check_preemption(void);
 
-void thread_lock_acquire(struct lock *lock);
+void thread_lock_acquire(void);
 void thread_lock_release(struct lock *lock);
 void thread_lock_refresh(void);
 void thread_lock_remove(struct lock *lock);
