@@ -131,6 +131,8 @@ thread_init (void)
   for(int i =0; i<128; i++){
     initial_thread->fd[i] = NULL;
   }
+
+  // printf("thread_prior_aging is %d\n", thread_prior_aging); // debug
   //JGH_END
 
   initial_thread->status = THREAD_RUNNING;
@@ -181,8 +183,11 @@ thread_tick (void)
   // sema_down(&t->sleeping_sema);
 
   // /* Project #3. */
-  if (thread_prior_aging == true)
+  if (thread_prior_aging == true){
+    // printf("thread_aging start \n"); // debug
     thread_aging();
+  }
+    
   #endif
 }
 
@@ -932,6 +937,8 @@ thread_aging(void){
   struct list_elem *e; 
   for(e= list_begin(&ready_list); e!= list_end(&ready_list); e= list_next(e)){
     struct thread *t = list_entry(e, struct thread, elem);
-    t->init_priority += 1;
+    // printf("%s 's priority is %d\n", t->name, t->priority); // debug
+    t->priority += 1;
   }
+  thread_check_preemption();
 }

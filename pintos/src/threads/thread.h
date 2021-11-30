@@ -8,7 +8,7 @@
 
 #ifndef USERPROG
 /* Project #3. */
-bool thread_prior_aging;
+extern bool thread_prior_aging;
 #endif
 
 /* States in a thread's life cycle. */
