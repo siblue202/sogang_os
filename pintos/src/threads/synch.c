@@ -215,12 +215,7 @@ lock_acquire (struct lock *lock)
 
   // jgh for proj 3 
   if(lock->holder){
-    thread_current()->lock_wait = lock;
-    list_insert_ordered(&lock->holder->lock_waiter, 
-                          &thread_current()->lock_waiter_elem,
-                          value_more_waiter, NULL);
-    
-    thread_lock_acquire();
+    thread_lock_acquire(lock);
   }
 
   sema_down (&lock->semaphore);
