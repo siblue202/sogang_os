@@ -123,6 +123,10 @@ struct thread
     struct list lock_waiter;           // lock들을 기다리는 waiter_thread들 
     struct list_elem lock_waiter_elem; // lock_waiter list를 위한 elem 
 
+    // jgh for BSD
+    int nice; 
+    int recent_cpu; 
+
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */

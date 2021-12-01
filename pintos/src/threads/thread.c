@@ -127,6 +127,9 @@ thread_init (void)
   initial_thread->init_priority = initial_thread->priority; // for proj 3 초기 priority 저장 
   initial_thread->lock_wait = NULL;               // for proj3
 
+  initial_thread->nice = 0;             // for BSD
+  initial_thread->recent_cpu = 0;       // for BSD
+
   //JGH 
   for(int i =0; i<128; i++){
     initial_thread->fd[i] = NULL;
