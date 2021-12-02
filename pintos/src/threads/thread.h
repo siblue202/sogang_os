@@ -199,4 +199,9 @@ bool value_less_waiter(const struct list_elem *a_, const struct list_elem *b_,
             void *aux UNUSED);
 void thread_aging(void);
 
+// for BSD 
+void bsd_cal_priority(void);
+void bsd_cal_recent_cpu(void);
+void bsd_cal_load_avg(void);
+
 #endif /* threads/thread.h */

@@ -214,7 +214,7 @@ lock_acquire (struct lock *lock)
   ASSERT (!lock_held_by_current_thread (lock));
 
   // jgh for proj 3 
-  if(lock->holder){
+  if(lock->holder && thread_mlfqs != true){
     thread_lock_acquire(lock);
   }
 
@@ -256,8 +256,10 @@ lock_release (struct lock *lock)
 
   // jgh for proj3 
   // thread_lock_release(lock); // thread_lock_refresh(), thread_lock_remove() 로 나눔 
-  thread_lock_remove(lock);
-  thread_lock_refresh();
+  if(thread_mlfqs != true){
+    thread_lock_remove(lock);
+    thread_lock_refresh();
+  }
 
   lock->holder = NULL;
   

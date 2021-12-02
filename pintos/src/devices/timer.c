@@ -7,6 +7,7 @@
 #include "threads/interrupt.h"
 #include "threads/synch.h"
 #include "threads/thread.h"
+#include <string.h> // jgh 
   
 /* See [8254] for hardware details of the 8254 timer chip. */
 
@@ -179,6 +180,22 @@ timer_interrupt (struct intr_frame *args UNUSED)
   ticks++;
   thread_tick ();
   // printf("start thread_wake_up() in timer_interrupt\n");
+
+  // for BSD 
+  if(thread_mlfqs == true){
+    if(strcmp(thread_current()->name, "idle") != 0){
+      thread_current()->recent_cpu += 1;
+    }
+
+    if(timer_ticks()%4 == 0){
+      bsd_cal_priority();
+    }
+    if(timer_ticks()%TIMER_FREQ == 0){
+      printf("adsfasdfadsf\n");
+      bsd_cal_load_avg();
+      bsd_cal_recent_cpu();
+    }
+  }
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer

@@ -14,6 +14,7 @@
 #include "filesys/file.h" 
 // jgh 
 #include "devices/timer.h"
+#include "threads/fixed-point.h"    // jgh for BSD 
 
 #ifdef USERPROG
 #include "userprog/process.h"
@@ -73,6 +74,8 @@ bool thread_prior_aging;
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
 bool thread_mlfqs;
+// jgh for BSD 
+int load_avg; // system-wide value
 
 static void kernel_thread (thread_func *, void *aux);
 
@@ -126,10 +129,16 @@ thread_init (void)
   list_init(&(initial_thread->lock_waiter));      // for proj3
   initial_thread->init_priority = initial_thread->priority; // for proj 3 초기 priority 저장 
   initial_thread->lock_wait = NULL;               // for proj3
-
-  initial_thread->nice = 0;             // for BSD
-  initial_thread->recent_cpu = 0;       // for BSD
-
+  
+  // for BSD
+  if(thread_mlfqs == true){
+    initial_thread->nice = 0;             // for BSD
+    initial_thread->recent_cpu = 0;       // for BSD
+    int left_priority = sub_x_y(int_to_fp(PRI_MAX), initial_thread->recent_cpu/4);  // for BSD
+    initial_thread->priority = fp_to_int_zero(sub_x_n(left_priority, (initial_thread->nice *2)));   // for BSD
+    load_avg = 0;                         // for BSD
+  }
+  
   //JGH 
   for(int i =0; i<128; i++){
     initial_thread->fd[i] = NULL;
@@ -141,6 +150,7 @@ thread_init (void)
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
 }
+
 
 /* Starts preemptive thread scheduling by enabling interrupts.
    Also creates the idle thread. */
@@ -190,7 +200,7 @@ thread_tick (void)
     // printf("thread_aging start \n"); // debug
     thread_aging();
   }
-    
+
   #endif
 }
 
@@ -261,6 +271,15 @@ thread_create (const char *name, int priority,
   list_init(&(t->lock_waiter));     // for proj3
   t->init_priority = priority;   // for proj3 init_priority 초기화 
   t->lock_wait = NULL;              // for proj3
+
+  // for BSD
+  if(thread_mlfqs == true){
+    t->nice = thread_current()->nice; // for BSD
+    t->recent_cpu = thread_current()->recent_cpu; // for BSD
+    int left_priority = sub_x_y(int_to_fp(PRI_MAX), t->recent_cpu/4);  // for BSD
+    t->priority = fp_to_int_zero(sub_x_n(left_priority, (t->nice *2)));           // for BSD
+  }
+
 
   for(int i=0; i<128; i++){
     t->fd[i] = NULL;
@@ -449,15 +468,17 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
-  thread_current ()->init_priority = new_priority;
-  // JGH 
+  if(thread_mlfqs != true){
+    thread_current ()->init_priority = new_priority;
+    // JGH 
 
-  thread_lock_refresh();
-  // 우선순위 변경 시 우선순위에 따라 선점이 발생하도록 설정 
-  thread_check_preemption();
-  // thread_check_preemption();
-   
-  // JGH_END
+    thread_lock_refresh();
+    // 우선순위 변경 시 우선순위에 따라 선점이 발생하도록 설정 
+    thread_check_preemption();
+    // thread_check_preemption();
+    
+    // JGH_END
+  }
 }
 
 /* Returns the current thread's priority. */
@@ -471,31 +492,28 @@ thread_get_priority (void)
 void
 thread_set_nice (int nice UNUSED) 
 {
-  /* Not yet implemented. */
+  thread_current()->nice = nice;
 }
 
 /* Returns the current thread's nice value. */
 int
 thread_get_nice (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  return thread_current()->nice;
 }
 
 /* Returns 100 times the system load average. */
 int
 thread_get_load_avg (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  return fp_to_int_near(load_avg ) * 100;
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
 int
 thread_get_recent_cpu (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  return fp_to_int_near(thread_current()->recent_cpu) * 100;
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
@@ -944,4 +962,50 @@ thread_aging(void){
     t->priority += 1;
   }
   thread_check_preemption();
+}
+
+// priority = PRI_MAX - (recent_cpu/4) - (nice*2)
+// cal when init thread and every 4 ticks 
+void bsd_cal_priority(void){
+  struct list_elem *e;
+  for(e= list_begin(&all_list); e!= list_end(&all_list); e= list_next(e)){
+    struct thread *t = list_entry(e, struct thread, elem);
+    int left_priority = sub_x_y(int_to_fp(PRI_MAX), t->recent_cpu/4);  // for BSD
+    t->priority = fp_to_int_zero(sub_x_n(left_priority, (t->nice *2)));// for BSD
+  }
+}
+
+void bsd_cal_recent_cpu(void){
+  int rate_of_decay = div_x_y(mul_x_n(2, load_avg), mul_x_n(2, load_avg) + 1);
+  struct list_elem *e;
+  int prev_recent_cpu;
+  int left_recent_cpu;
+  for(e= list_begin(&all_list); e!= list_end(&all_list); e= list_next(e)){
+    struct thread *t = list_entry(e, struct thread, elem);
+    if(strcmp(t->name, "idle") != 0){
+      prev_recent_cpu = t->recent_cpu;
+      left_recent_cpu = mul_x_y(rate_of_decay, prev_recent_cpu);
+      t->recent_cpu = add_x_n(left_recent_cpu, t->nice);
+    }
+  }
+}
+ 
+void bsd_cal_load_avg(void){
+  int ready_threads =0;
+  struct list_elem *e;
+  for(e= list_begin(&all_list); e!= list_end(&all_list); e= list_next(e)){
+    struct thread *t = list_entry(e, struct thread, elem);
+    if(t->status == THREAD_RUNNING || t->status == THREAD_READY){
+      if(strcmp(t->name, "idle") != 0){
+        ready_threads += 1;
+      }
+    }
+  }
+  // load_avg = (59/60)*load_avg + (1/60)*ready_threads;
+  int div_59_60 = div_x_y(int_to_fp(59), int_to_fp(60));
+  int div_1_60 = div_x_y(int_to_fp(1), int_to_fp(60));
+  int left_load_avg = mul_x_y(div_59_60, load_avg);
+  int right_load_avg = mul_x_n(div_1_60, ready_threads);
+  load_avg = add_x_y(left_load_avg, right_load_avg);
+  printf("%d\n", thread_get_load_avg());
 }
