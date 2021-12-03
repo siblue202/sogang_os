@@ -183,15 +183,12 @@ timer_interrupt (struct intr_frame *args UNUSED)
 
   // for BSD 
   if(thread_mlfqs == true){
-    if(strcmp(thread_current()->name, "idle") != 0){
-      thread_current()->recent_cpu += 1;
-    }
+    bsd_increase_recent_cpu();
 
     if(timer_ticks()%4 == 0){
       bsd_cal_priority();
     }
     if(timer_ticks()%TIMER_FREQ == 0){
-      printf("adsfasdfadsf\n");
       bsd_cal_load_avg();
       bsd_cal_recent_cpu();
     }

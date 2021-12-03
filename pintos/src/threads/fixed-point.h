@@ -34,10 +34,10 @@ int fp_to_int_zero(int x){
 }
 
 int fp_to_int_near(int x){
-    if(x>=0){
-        return (x + F/2);
+    if(x>0){
+        return (x + F/2) / F;
     } else{
-        return (x - F/2);
+        return (x - F/2) /F;
     }
 }
 

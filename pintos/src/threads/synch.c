@@ -213,11 +213,13 @@ lock_acquire (struct lock *lock)
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
-  // jgh for proj 3 
-  if(lock->holder && thread_mlfqs != true){
-    thread_lock_acquire(lock);
+  if(thread_mlfqs != true){ // for BSD
+    // jgh for proj 3 
+    if(lock->holder){
+      thread_lock_acquire(lock);
+    }
   }
-
+  
   sema_down (&lock->semaphore);
   thread_current()->lock_wait = NULL;                 // null로 초기화
   lock->holder = thread_current ();
@@ -256,7 +258,7 @@ lock_release (struct lock *lock)
 
   // jgh for proj3 
   // thread_lock_release(lock); // thread_lock_refresh(), thread_lock_remove() 로 나눔 
-  if(thread_mlfqs != true){
+  if(thread_mlfqs != true){ // for BSD
     thread_lock_remove(lock);
     thread_lock_refresh();
   }

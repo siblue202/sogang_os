@@ -9,6 +9,7 @@
 #ifndef USERPROG
 /* Project #3. */
 extern bool thread_prior_aging;
+extern int load_avg;
 #endif
 
 /* States in a thread's life cycle. */
@@ -203,5 +204,6 @@ void thread_aging(void);
 void bsd_cal_priority(void);
 void bsd_cal_recent_cpu(void);
 void bsd_cal_load_avg(void);
+void bsd_increase_recent_cpu(void);
 
 #endif /* threads/thread.h */
