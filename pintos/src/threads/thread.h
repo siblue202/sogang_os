@@ -5,6 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 #include "threads/synch.h" /* Project #3. */
+#include <hash.h>          // for proj #4
 
 #ifndef USERPROG
 /* Project #3. */
@@ -128,6 +129,8 @@ struct thread
     int nice; 
     int recent_cpu; 
 
+    // jgh for virtual mem
+    struct hash vm;                    // thread가 가진 virtual addr space를 관리하는 hash table
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
