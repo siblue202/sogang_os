@@ -18,6 +18,8 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
+// for vm
+#include "vm/page.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -87,6 +89,9 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
+
+  // jgh for vm 
+  vm_init(&thread_current()->vm);
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);

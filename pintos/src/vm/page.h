@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <list.h>
 #include <hash.h>
+#include <stdbool.h>
 
 #define VM_BIN      0           // binary 파일로 부터 데이터를 로드 
 #define VM_FILE     1           // mapping된 파일로 부터 데이터를 로드 
@@ -26,3 +27,8 @@ struct vm_entry{
 
     struct hash_elem elem;      // hash table element
 };
+
+void vm_init(struct hash *vm); // hash_init()으로 hash table 초기화 
+bool insert_vme(struct hash *vm, struct vm_entry *vme); // vm_entry를 hash_table에 삽입
+bool delete_vme(struct hash *vm, struct vm_entry *vme); // vm_entry를 hash_table에서 삭제 
+struct vm_entry *find_vme(void *vaddr); // vm_entry 검색 후 반환 
