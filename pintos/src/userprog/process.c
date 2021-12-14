@@ -183,6 +183,8 @@ process_exit (void)
   // JGH_ adding process termination message. 0 is successful, -1 is fail
   // printf("%s: exit(%d)\n", cur->name, status);
 
+  // jgh for vm 
+  vm_destroy(&cur->vm);
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -596,30 +598,46 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
+      // jgh for vm
+      // physical mem에 적재할 때 vm을 통해 적재하도록 수정 
+
       /* Get a page of memory. */
-      uint8_t *kpage = palloc_get_page (PAL_USER);
-      if (kpage == NULL)
-        return false;
+      // uint8_t *kpage = palloc_get_page (PAL_USER);
+      // if (kpage == NULL)
+      //   return false;
 
-      /* Load this page. */
-      if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
-        {
-          palloc_free_page (kpage);
-          return false; 
-        }
-      memset (kpage + page_read_bytes, 0, page_zero_bytes);
+      // /* Load this page. */
+      // if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
+      //   {
+      //     palloc_free_page (kpage);
+      //     return false; 
+      //   }
+      // memset (kpage + page_read_bytes, 0, page_zero_bytes);
 
-      /* Add the page to the process's address space. */
-      if (!install_page (upage, kpage, writable)) 
-        {
-          palloc_free_page (kpage);
-          return false; 
-        }
+      // /* Add the page to the process's address space. */
+      // if (!install_page (upage, kpage, writable)) 
+      //   {
+      //     palloc_free_page (kpage);
+      //     return false; 
+      //   }
+
+      struct hash *h = &thread_current()->vm;
+      struct vm_entry *vme = (struct vm_entry *)malloc(sizeof(struct vm_entry));
+      vme->type= 1;
+      vme->vaddr= h->bucket_cnt;
+      vme->writable= writable;
+      vme->file= file;
+      vme->offset= ofs;
+      vme->read_bytes= page_read_bytes;
+      vme->zero_bytes= page_zero_bytes;
 
       /* Advance. */
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
+      ofs += page_read_bytes;
       upage += PGSIZE;
+
+      insert_vme(h, vme);
     }
   return true;
 }

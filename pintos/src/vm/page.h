@@ -32,3 +32,4 @@ void vm_init(struct hash *vm); // hash_init()으로 hash table 초기화
 bool insert_vme(struct hash *vm, struct vm_entry *vme); // vm_entry를 hash_table에 삽입
 bool delete_vme(struct hash *vm, struct vm_entry *vme); // vm_entry를 hash_table에서 삭제 
 struct vm_entry *find_vme(void *vaddr); // vm_entry 검색 후 반환 
+void vm_destroy(struct hash *vm); // hash table의 bucket list와 vm_entry 제거 
